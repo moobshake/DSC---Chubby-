@@ -23,6 +23,7 @@ type NodeCommServiceClient interface {
 	SendCoordinationMessage(ctx context.Context, in *CoordinationMessage, opts ...grpc.CallOption) (*CoordinationMessage, error)
 	Shutdown(ctx context.Context, in *ControlMessage, opts ...grpc.CallOption) (*ControlMessage, error)
 	SendControlMessage(ctx context.Context, in *ControlMessage, opts ...grpc.CallOption) (*ControlMessage, error)
+	SentClientMessage(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error)
 }
 
 type nodeCommServiceClient struct {
@@ -78,6 +79,15 @@ func (c *nodeCommServiceClient) SendControlMessage(ctx context.Context, in *Cont
 	return out, nil
 }
 
+func (c *nodeCommServiceClient) SentClientMessage(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error) {
+	out := new(ClientMessage)
+	err := c.cc.Invoke(ctx, "/NodeComm.NodeCommService/SentClientMessage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodeCommServiceServer is the server API for NodeCommService service.
 // All implementations must embed UnimplementedNodeCommServiceServer
 // for forward compatibility
@@ -87,6 +97,7 @@ type NodeCommServiceServer interface {
 	SendCoordinationMessage(context.Context, *CoordinationMessage) (*CoordinationMessage, error)
 	Shutdown(context.Context, *ControlMessage) (*ControlMessage, error)
 	SendControlMessage(context.Context, *ControlMessage) (*ControlMessage, error)
+	SentClientMessage(context.Context, *ClientMessage) (*ClientMessage, error)
 	mustEmbedUnimplementedNodeCommServiceServer()
 }
 
@@ -108,6 +119,9 @@ func (UnimplementedNodeCommServiceServer) Shutdown(context.Context, *ControlMess
 }
 func (UnimplementedNodeCommServiceServer) SendControlMessage(context.Context, *ControlMessage) (*ControlMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendControlMessage not implemented")
+}
+func (UnimplementedNodeCommServiceServer) SentClientMessage(context.Context, *ClientMessage) (*ClientMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SentClientMessage not implemented")
 }
 func (UnimplementedNodeCommServiceServer) mustEmbedUnimplementedNodeCommServiceServer() {}
 
@@ -212,6 +226,24 @@ func _NodeCommService_SendControlMessage_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeCommService_SentClientMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClientMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeCommServiceServer).SentClientMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/NodeComm.NodeCommService/SentClientMessage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeCommServiceServer).SentClientMessage(ctx, req.(*ClientMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodeCommService_ServiceDesc is the grpc.ServiceDesc for NodeCommService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +270,10 @@ var NodeCommService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendControlMessage",
 			Handler:    _NodeCommService_SendControlMessage_Handler,
+		},
+		{
+			MethodName: "SentClientMessage",
+			Handler:    _NodeCommService_SentClientMessage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -60,3 +60,11 @@ const (
 	Error
 	NotInNetwork
 )
+
+type ClientMessageFlags int32
+
+const (
+	DoNotUserZeroVal5 ClientMessageFlags = iota
+	FileWrite
+	FileRead
+)

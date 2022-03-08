@@ -53,6 +53,18 @@ message ParamsBody {
     int32 Verbose = 6;
 }
 
+message ClientMessage {
+    int32 ClientID = 1;
+    int32 Type = 2;
+    int32 Spare = 3;
+    int32 Message = 4;
+    FileBody FileBody = 5;
+}
+
+message FileBody{
+    string Name = 1;
+}
+
 service NodeCommService {
     rpc KeepAlive(NodeMessage) returns (NodeMessage){}
     rpc SendMessage(NodeMessage) returns (NodeMessage) {}
@@ -61,4 +73,6 @@ service NodeCommService {
 
     rpc Shutdown(ControlMessage) returns (ControlMessage){}
     rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
+
+    rpc SentClientMessage(ClientMessage) returns (ClientMessage){}
 }

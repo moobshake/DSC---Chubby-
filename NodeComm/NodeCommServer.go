@@ -7,7 +7,7 @@ import (
 
 //Methods here MUST ONLY BE CALLED BY THE LISTENER SERVER
 
-//online: API command to have the node join a network
+//onlineNode: API command to have the node join a network
 func (n *Node) onlineNode() {
 	if n.idOfMaster != int(n.myPRecord.Id) && n.idOfMaster == -1 {
 		fmt.Println("Unable to start or join a network without idOfMaster set!")
@@ -25,6 +25,8 @@ func (n *Node) onlineNode() {
 	fmt.Println("Node is online.")
 }
 
+//tryJoinNetwork has the node contact a configured coordinator to join a network or it has the
+//node create a network if it is configured as a coordinator.
 func (n *Node) tryJoinNetwork() bool {
 	nCoMsg := CoordinationMessage{Type: int32(ReqToJoin)}
 	response := n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &nCoMsg)
@@ -53,6 +55,8 @@ func (n *Node) tryJoinNetwork() bool {
 	return false
 }
 
+//offlineNode instructs a node to leave its network. If said node is also a master, it appoints
+//the next highest ID node to take cover as coordinator.
 func (n *Node) offlineNode() {
 	if n.idOfMaster == int(n.myPRecord.Id) {
 		nextHighestID := 0
@@ -70,6 +74,7 @@ func (n *Node) offlineNode() {
 }
 
 //Recordkeeping Code
+//isPeer returns true if the given node ID is known to this node.
 func (n *Node) isPeer(senderID int32) bool {
 	peerID := int(senderID)
 	var ans bool
@@ -84,7 +89,7 @@ func (n *Node) isPeer(senderID int32) bool {
 	return ans
 }
 
-//Safe
+//getPeerRecord returns the PeerRecord of the given node ID.
 func (n *Node) getPeerRecord(ID int, noWarning bool) *PeerRecord {
 	if ID == int(n.myPRecord.Id) {
 		return n.myPRecord
@@ -104,7 +109,7 @@ func (n *Node) getPeerRecord(ID int, noWarning bool) *PeerRecord {
 	return ansRec
 }
 
-//Safe
+//deletePeerRecord deletes a PeerRecord matching the given ID if such a record exists.
 func (n *Node) deletePeerRecord(ID int) {
 	n.peerRecordsLock.Lock()
 	for i, pRec := range n.peerRecords {
@@ -115,6 +120,8 @@ func (n *Node) deletePeerRecord(ID int) {
 	}
 	n.peerRecordsLock.Unlock()
 }
+
+//updatePeerRecords updates the PeerRecords of the node with the given PeerRecord
 func (n *Node) updatePeerRecords(pUpdateRec *PeerRecord) {
 	n.peerRecordsLock.Lock()
 	for i, pRec := range n.peerRecords {
@@ -128,6 +135,7 @@ func (n *Node) updatePeerRecords(pUpdateRec *PeerRecord) {
 	n.peerRecordsLock.Unlock()
 }
 
+//mergePeerRecords updates the PeerRecords of the node with the given PeerRecords
 func (n *Node) mergePeerRecords(peerRecords []*PeerRecord) {
 	for _, nPRec := range peerRecords {
 		if nPRec.Id == n.myPRecord.Id {
@@ -137,6 +145,7 @@ func (n *Node) mergePeerRecords(peerRecords []*PeerRecord) {
 	}
 }
 
+//overrridePeerRecords completely overrides this node's PeerRecords with the given PeerRecords
 func (n *Node) overridePeerRecords(peerRecords []*PeerRecord) {
 	n.peerRecords = peerRecords
 	for i, nPRec := range peerRecords {
@@ -147,7 +156,14 @@ func (n *Node) overridePeerRecords(peerRecords []*PeerRecord) {
 	n.peerRecords = peerRecords
 }
 
+//badNodeHandler checks the node of the given pRec and handles it if it is offline
 func (n *Node) badNodeHandler(pRec *PeerRecord) bool {
+	//This check is especially important because if a coordinator receives a badnodereport and an election starts
+	//simultaneously, it might remove the peerrecord of the badnode and attempt to send an election message
+	//to the same node. Racecondition problems. This might cause an nil error if this check isn't here.
+	if pRec == nil {
+		return false
+	}
 	fmt.Println("Potentially offline node detected: ", pRec)
 	fmt.Println("Sending KeepAlive message...")
 	response := n.DispatchKeepAlve(pRec)
@@ -168,7 +184,7 @@ func (n *Node) badNodeHandler(pRec *PeerRecord) bool {
 	return false
 }
 
-//Election code
+//electionHandler handles all election messages
 func (n *Node) electionHandler(electMsg *CoordinationMessage) {
 	n.electionStatusLock.Lock()
 	n.electionStatus.Active = 2
@@ -207,6 +223,9 @@ func (n *Node) electionHandler(electMsg *CoordinationMessage) {
 	n.electionStatusLock.Unlock()
 }
 
+//electionTimer is used for a node to check if it has won the election or not.
+//When the timer expires, the node will check if it received any RejectElect, if it has not
+//it declares itself the winner of the election.
 func (n *Node) electionTimer() {
 	for _, pRec := range n.peerRecords {
 		if pRec.Id > n.myPRecord.Id {
@@ -245,6 +264,7 @@ func (n *Node) electionTimer() {
 	}
 }
 
+//spoofElection spoofs a fake ElectSelf to this node to prompt it start an election
 func (n *Node) spoofElection() {
 	fakeCoMsg := CoordinationMessage{Type: int32(ElectSelf), FromPRecord: n.myPRecord}
 	n.electionHandler(&fakeCoMsg)

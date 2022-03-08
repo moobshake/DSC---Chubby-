@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-//Node idk
+//Node is a logical structure for the bully node.
 type Node struct {
 	NodeCommServiceServer
 	idOfMaster         int
@@ -24,7 +24,7 @@ type Node struct {
 	verbose            int
 }
 
-//CreateNode abc
+//CreateNode initialises a Node
 func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 	n := Node{
 		idOfMaster:     idOfMaster,
@@ -35,7 +35,7 @@ func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 	return &n
 }
 
-//StartNode abc
+//StartNode starts the listener, initialises the params of the listener, and starts the UI.
 func (n *Node) StartNode() {
 	go n.startListener()
 	pBody := ParamsBody{MyPRecord: n.myPRecord, IdOfMaster: int32(n.idOfMaster), ElectionStatus: n.electionStatus, Verbose: int32(n.verbose)}
@@ -44,6 +44,7 @@ func (n *Node) StartNode() {
 	n.startCLI()
 }
 
+//startListener starts a *grpc.serve server as a listener.
 func (n *Node) startListener() {
 	if n.idOfMaster == -1 {
 		fmt.Println("Unable to start without idOfMaster set!")
@@ -296,4 +297,9 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationM
 		}
 	}
 	return &nCoMsg, nil
+}
+
+//SendClientMessage: Channel for ClientMessages
+func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*ClientMessage, error) {
+	return &ClientMessage{Type: int32(Ack)}, nil
 }

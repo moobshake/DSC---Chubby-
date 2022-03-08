@@ -53,6 +53,12 @@ startElection
 ```
 This command spoofs a Election message to the current node to trigger it into starting an election.
 
+### Help
+```bash
+help <NAME_OF_COMMAND>
+```
+If not provided an argument, this command will print out a list of available commands. If provided an argument, help will print out relevant helper text if any.
+
 <br>
 <br>
 
@@ -136,7 +142,11 @@ Before moving on, I wish to state that due to certain implementation choices I h
 
 Nevertheless, it is still possible to force the network into such a fractured state as is desired by this task through some manual configurations.
 
-Offline the coordinator node (5). On any two nodes (3 and 4), set their idOfMaster to node 4. Leave the other two nodes (1 and 2) untouched.
+Ungracefully exit the coordinator node (5). 
+```bash
+exit
+```
+On any two nodes (3 and 4), set their idOfMaster to node 4. Leave the other two nodes (1 and 2) untouched.
 ```bash
 config idOfMaster=4
 ```
@@ -148,11 +158,12 @@ This state of the network will eventually be rectified when any election occurs,
 
 Scenario 1 can be simulated by having a node that did not receive the result attempt to message the downed master node.
 
-Scenario 2 can be simulated by having a node that received the election result (3) go "offline", as this will prompt the coordinator (4) to update the rest of the network. As this update is a coordinator-only action, it will receive "NotMaster" replies from nodes that do not know that it is the coordinator (1 and 2) and initate an election. Scenario 2 also means that even if the original coordinator that failed re-awakens the network will still eventually converge.
-
+Scenario 2 can be simulated by having a node that received the election result (3) go "offline".
 ```bash
 offline
 ```
+This will prompt the coordinator (4) to update the rest of the network. As this update is a coordinator-only action, it will receive "NotMaster" replies from nodes that do not know that it is the coordinator (1 and 2) and initate an election. Scenario 2 also means that even if the original coordinator that failed re-awakens, the network will still eventually converge.
+
 
 Note: I would like to reiterate that this state of the network should be impossible to occur as the nodes are implemented in such a way so as to re-trigger an election if they do not receive an election result in a timely manner.
 
@@ -175,7 +186,7 @@ shutdown
 
 Due to the fact that the GRPC library uses HTTP/2 over TCP, a newly elected coordinator will rapidly discover the offline status our downed node when it attempts to broadcast the election results. Consequently, the coordinator will update the network about the status of our downed node.
 
-Aside from this however, this scenario is also insignificant to the integrity of the network. Say that, for some reason, the newly appointed coordinator does not detect the downed node when it announces its election results, then when any node attempts to communicate with the downed node one of two things will happen.
+Aside from this however, this scenario is also insignificant to the integrity of the network. Say that, for some reason, perhaps an extremely ill-timed ungraceful exit, the newly appointed coordinator does not detect the downed node when it announces its election results, then when any node attempts to communicate with the downed node one of two things will happen.
 
 1) If the communicating node is not the coordinator, it will notify the coordinator that our node is potentially offline. The coordinator will then verify this and update the network accordingly.
 2) If the communciating node is the coordinator, it will verify the status of the node and update the network accordingly.
@@ -201,7 +212,7 @@ Now, send a message to the offline coordinator from at multiple nodes within a s
 msg 4 Hello, are you online?
 ```
 
-For the latter method, rapidly run the following command on multiple nodes.\
+For the latter method, rapidly run the following command on multiple nodes.
 ```bash
 startElection
 ```

@@ -15,7 +15,7 @@ import (
 
 //<> "Internal" Control API <>
 
-//DispatchShutdown abc
+//DispatchShutdown sends a shutdown signal to the server
 func (n *Node) DispatchShutdown() bool {
 	conn, err := connectTo(n.myPRecord.Address, n.myPRecord.Port)
 	if err != nil {
@@ -37,6 +37,7 @@ func (n *Node) DispatchShutdown() bool {
 	return false
 }
 
+//DispatchControlMessage dispatches a control message to the server
 func (n *Node) DispatchControlMessage(cMsg *ControlMessage) *ControlMessage {
 	conn, err := connectTo(n.myPRecord.Address, n.myPRecord.Port)
 	if err != nil {
@@ -56,7 +57,11 @@ func (n *Node) DispatchControlMessage(cMsg *ControlMessage) *ControlMessage {
 
 //DO NOT PUT THE BAD NODE HANDLER HERE TO AVOID A NEVER ENDING LOOP
 //THIS SHOULD REALLY BE RENAMED TO CHECKALIVE
+//DispatchKeepAlive sends a NodeMessage as a keepalive message to the node of the given PeerRecord.
 func (n *Node) DispatchKeepAlve(destPRec *PeerRecord) bool {
+	if destPRec == nil {
+		return false
+	}
 	conn, err := connectTo(destPRec.Address, destPRec.Port)
 	if err != nil {
 		if n.verbose == 2 {
@@ -87,6 +92,7 @@ func (n *Node) DispatchKeepAlve(destPRec *PeerRecord) bool {
 	return false
 }
 
+//DispatchMessage dispatches the given NodeMessage to the node of the given PeerRecord
 func (n *Node) DispatchMessage(destPRec *PeerRecord, nodeMessage *NodeMessage) *NodeMessage {
 	if destPRec == nil {
 		return nil
@@ -117,6 +123,7 @@ func (n *Node) DispatchMessage(destPRec *PeerRecord, nodeMessage *NodeMessage) *
 	return response
 }
 
+//DispatchCoordinationMessage dispatches a given CoordinationMessage to the node of the given PeerRecord.
 func (n *Node) DispatchCoordinationMessage(destPRec *PeerRecord, nCoMsg *CoordinationMessage) *CoordinationMessage {
 	if destPRec == nil {
 		return nil
@@ -150,6 +157,8 @@ func (n *Node) DispatchCoordinationMessage(destPRec *PeerRecord, nCoMsg *Coordin
 
 	return response
 }
+
+//Convenience methods
 
 func (n *Node) BroadcastCoordinationMessage(nCoMsg *CoordinationMessage) {
 	for _, pRec := range n.peerRecords {

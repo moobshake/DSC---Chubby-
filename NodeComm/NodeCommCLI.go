@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-//MainLoop abc
+//startCLI starts the CLI (mainloop)
 func (n *Node) startCLI() {
 	scanner := bufio.NewScanner(os.Stdin)
 	var userInput string
