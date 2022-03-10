@@ -31,6 +31,7 @@ func main() {
 	NodeComm.InitDirectory(dataPath, true)
 	NodeComm.InitDirectory(lockPath, false)
 	NodeComm.InitLockFiles(lockPath, dataPath)
+	NodeComm.AcquireWriteLock("sample1.txt.lock", lockPath, 5, *nodeIDFlag, true)
 
 	node := NodeComm.CreateNode(
 		*nodeIDFlag,
