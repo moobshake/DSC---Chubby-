@@ -1,10 +1,12 @@
-package main
+package nodecomm
 
 import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"os"
+
+	cp "github.com/otiai10/copy"
 )
 
 const LOCK_PATH = "./lock"
@@ -16,12 +18,18 @@ type Lock struct {
 	Timeout int64 // timestamp for timeout
 }
 
-func initDirectory(path string) {
+func InitDirectory(path string, data bool) {
 	_, err := os.Stat(path)
 	if err != nil {
 		e := os.Mkdir(path, 0755)
 		if e != nil {
 			log.Fatal(e)
+		}
+	}
+	if data {
+		err = cp.Copy("sample_data", path)
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 }
@@ -47,7 +55,7 @@ func createFile(path string, filename string, filetype string) {
 	}
 }
 
-func initLockFiles(lock_path string, data_path string) {
+func InitLockFiles(lock_path string, data_path string) {
 	files, err := ioutil.ReadDir(data_path)
 	if err != nil {
 		log.Fatal(err)
@@ -58,9 +66,4 @@ func initLockFiles(lock_path string, data_path string) {
 			createFile(lock_path, file.Name(), ".lock")
 		}
 	}
-}
-
-func main() {
-	initDirectory(LOCK_PATH)
-	initLockFiles(LOCK_PATH, DATA_PATH)
 }
