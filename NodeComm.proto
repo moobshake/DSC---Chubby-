@@ -1,0 +1,78 @@
+syntax = "proto3";
+package NodeComm;
+//protoc --go_out=. --go-grpc_out=. --go-grpc_opt=paths=source_relative NodeComm.proto
+option go_package = "/nodecomm;nodecomm";
+
+message NodeMessage {
+    PeerRecord fromPRecord = 1;
+    int32 ToID = 2;
+    int32 Type = 3;
+    int32 Spare = 4;
+    string Comment = 5;
+    StandardBody StandardBody = 6;
+}
+
+message CoordinationMessage {
+    PeerRecord FromPRecord = 1;
+    int32 spare = 2;
+    int32 Type = 3;
+    string Comment = 4;
+    repeated PeerRecord PeerRecords = 5;
+}
+
+//1 -> False; 2 -> True
+message ElectionStatus {
+    int32 OngoingElection = 1;
+    int32 IsWinning = 2;
+    int32 Active = 3;
+    int32 TimeoutDuration = 4;
+}
+
+message PeerRecord {
+    int32 Id = 1;
+    string Address = 2;
+    string Port = 3;
+}
+message StandardBody {
+    string message = 1;
+}
+
+message ControlMessage {
+    int32 Type = 1;
+    int32 Spare = 2;
+    string Comment = 3;
+    ParamsBody ParamsBody = 4;
+    NodeMessage NodeMessage = 5;
+}
+message ParamsBody {
+    int32 Spare = 1;
+    repeated PeerRecord PeerRecords = 2;
+    PeerRecord MyPRecord = 3;
+    int32 IdOfMaster = 4;
+    ElectionStatus ElectionStatus = 5;
+    int32 Verbose = 6;
+}
+
+message ClientMessage {
+    int32 ClientID = 1;
+    int32 Type = 2;
+    int32 Spare = 3;
+    int32 Message = 4;
+    FileBody FileBody = 5;
+}
+
+message FileBody{
+    string Name = 1;
+}
+
+service NodeCommService {
+    rpc KeepAlive(NodeMessage) returns (NodeMessage){}
+    rpc SendMessage(NodeMessage) returns (NodeMessage) {}
+
+    rpc SendCoordinationMessage(CoordinationMessage) returns (CoordinationMessage) {}
+
+    rpc Shutdown(ControlMessage) returns (ControlMessage){}
+    rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
+
+    rpc SentClientMessage(ClientMessage) returns (ClientMessage){}
+}
