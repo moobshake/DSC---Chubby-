@@ -27,7 +27,7 @@ func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.Clien
 
 	cli := NC.NewNodeCommServiceClient(conn)
 
-	response, err := cli.SendClientMessage(context.Background(), CliMsg)
+	response, err := cli.SentClientMessage(context.Background(), CliMsg)
 	if err != nil {
 		return nil
 	}

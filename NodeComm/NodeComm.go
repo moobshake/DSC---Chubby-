@@ -300,21 +300,23 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationM
 }
 
 //SendClientMessage: Channel for ClientMessages
-func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*ClientMessage, error) {
+func (n *Node) SentClientMessage(ctx context.Context, CliMsg *ClientMessage) (*ClientMessage, error) {
 
 	var ans int32
-	fmt.Println("Entered SCM")
 
 	// Replies with master address
 	switch CliMsg.Type {
 	case int32(FindMaster):
 		// Find master
 		ans = 5
+		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
 	case int32(FileRead):
 		// Client request read
 		ans = 6
+		fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 	case int32(FileWrite):
 		ans = 7
+		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
 	}
 	return &ClientMessage{ClientID: CliMsg.ClientID, Type: int32(Ack), Message: int32(ans)}, nil
 }

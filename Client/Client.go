@@ -78,14 +78,17 @@ func (c *Client) FindMaster() {
 			Message:  -1,
 		}
 
+		fmt.Printf("Client %d sent master request to: %s:%s\n", c.ClientID, loc.IP, loc.Port)
 		res := c.DispatchClientMessage(&pr, &cm)
 		fmt.Println(res)
 	}
 
+	masterIP := "127.0.0.1"
+	masterPort := "9090"
 	// Hardcoded Master address temporarily
-	c.MasterAdd.Address = "127.0.0.1"
-	c.MasterAdd.Port = "9090"
-	fmt.Println("Added Client address")
+	c.MasterAdd.Address = masterIP
+	c.MasterAdd.Port = masterPort
+	fmt.Printf("Master Node Registered: %s:%s\n", masterIP, masterPort)
 }
 
 // Making request
@@ -100,14 +103,14 @@ func (c Client) ClientRequest(reqType string) {
 			ClientID: int32(c.ClientID),
 			Type:     int32(2),
 		}
-		fmt.Println("Creating Read Request")
+		fmt.Printf("Client %d creating Read Request\n", c.ClientID)
 
 	case "Write":
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
 			Type:     int32(3),
 		}
-		fmt.Println("Creating Write Request")
+		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
 	}
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)

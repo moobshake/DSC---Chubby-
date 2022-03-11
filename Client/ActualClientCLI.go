@@ -26,9 +26,9 @@ Main:
 		switch tokenised[0] {
 		case "exit":
 			break Main
-		case "writeRequest":
+		case "write":
 			C.ClientRequest("Write")
-		case "readRequest":
+		case "read":
 			C.ClientRequest("Read")
 		case "help":
 			printHelp(tokenised)
