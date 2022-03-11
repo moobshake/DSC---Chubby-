@@ -13,7 +13,7 @@ import (
 
 //Refer to NodCommFlags.go to see what flags are applicable for NC.ClientMessage
 
-func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.ClientMessage) *NC.ClientMessage {
+func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.ClientMessage) *NC.ServerMessage {
 	//Implement
 	if destPRec == nil {
 		return nil
@@ -26,7 +26,7 @@ func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.Clien
 
 	cli := NC.NewNodeCommServiceClient(conn)
 
-	response, err := cli.SentClientMessage(context.Background(), CliMsg)
+	response, err := cli.SendClientMessage(context.Background(), CliMsg)
 	if err != nil {
 		return nil
 	}

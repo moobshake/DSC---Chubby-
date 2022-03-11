@@ -25,13 +25,13 @@ func (n *Node) DispatchShutdown() bool {
 
 	c := NewNodeCommServiceClient(conn)
 
-	cMsg := ControlMessage{Type: int32(StopListening)}
+	cMsg := ControlMessage{Type: ControlMessage_StopListening}
 
 	response, err := c.Shutdown(context.Background(), &cMsg)
 	if err != nil {
 		fmt.Println("Error dispatching shutdown signal:", err)
 	}
-	if response.Type == int32(Okay) {
+	if response.Type == ControlMessage_Okay {
 		return true
 	}
 	return false
@@ -76,7 +76,7 @@ func (n *Node) DispatchKeepAlve(destPRec *PeerRecord) bool {
 
 	gibberish := strconv.Itoa(rand.Int())
 
-	nodeMessage := NodeMessage{FromPRecord: n.myPRecord, Type: int32(KeepAlive), Comment: gibberish}
+	nodeMessage := NodeMessage{FromPRecord: n.myPRecord, Type: NodeMessage_KeepAlive, Comment: gibberish}
 
 	response, err := c.KeepAlive(context.Background(), &nodeMessage)
 	if err != nil {
@@ -86,7 +86,7 @@ func (n *Node) DispatchKeepAlve(destPRec *PeerRecord) bool {
 
 		return false
 	}
-	if response.Type == int32(KeepAlive) && response.Comment == gibberish {
+	if response.Type == NodeMessage_KeepAlive && response.Comment == gibberish {
 		return true
 	}
 	return false
@@ -151,7 +151,7 @@ func (n *Node) DispatchCoordinationMessage(destPRec *PeerRecord, nCoMsg *Coordin
 		return nil
 	}
 
-	if response.Type == int32(NotMaster) && n.IsMaster() { //Network is fractured. Fix it.
+	if response.Type == CoordinationMessage_NotMaster && n.IsMaster() { //Network is fractured. Fix it.
 		n.startElection()
 	}
 
@@ -167,12 +167,12 @@ func (n *Node) BroadcastCoordinationMessage(nCoMsg *CoordinationMessage) {
 }
 
 func (n *Node) BroadcastElectionResults() {
-	nBCoMsg := CoordinationMessage{PeerRecords: append(n.peerRecords, n.myPRecord), Type: int32(ElectionResult)}
+	nBCoMsg := CoordinationMessage{PeerRecords: append(n.peerRecords, n.myPRecord), Type: CoordinationMessage_ElectionResult}
 	n.BroadcastCoordinationMessage(&nBCoMsg)
 }
 
 func (n *Node) BroadcastPeerInformation() {
-	nBCoMsg := CoordinationMessage{PeerRecords: append(n.peerRecords, n.myPRecord), Type: int32(PeerInformation)}
+	nBCoMsg := CoordinationMessage{PeerRecords: append(n.peerRecords, n.myPRecord), Type: CoordinationMessage_PeerInformation}
 	n.BroadcastCoordinationMessage(&nBCoMsg)
 }
 

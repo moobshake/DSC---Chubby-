@@ -23,7 +23,7 @@ Main:
 		}
 		switch tokenised[0] {
 		case "exit":
-			n.DispatchControlMessage(&ControlMessage{Type: int32(StopListening)})
+			n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_StopListening})
 			break Main
 		case "online":
 			n.online()
@@ -100,11 +100,11 @@ func printHelp(params []string) {
 }
 
 func (n *Node) online() {
-	n.DispatchControlMessage(&ControlMessage{Type: int32(JoinNetwork)})
+	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_JoinNetwork})
 }
 
 func (n *Node) offline() {
-	n.DispatchControlMessage(&ControlMessage{Type: int32(LeaveNetwork)})
+	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_LeaveNetwork})
 }
 
 func (n *Node) addPeer(params []string) {
@@ -127,8 +127,8 @@ func (n *Node) addPeer(params []string) {
 		}
 		nPRecs = append(nPRecs, &nPRec)
 	}
-	response := n.DispatchControlMessage(&ControlMessage{Type: int32(AddPeer), ParamsBody: &ParamsBody{PeerRecords: nPRecs}})
-	if response.Type == int32(Okay) {
+	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_AddPeer, ParamsBody: &ParamsBody{PeerRecords: nPRecs}})
+	if response.Type == ControlMessage_Okay {
 		fmt.Println("Done")
 	}
 }
@@ -143,14 +143,14 @@ func (n *Node) delPeer(params []string) {
 		nPRec := PeerRecord{Id: int32(peerID)}
 		nPRecs = append(nPRecs, &nPRec)
 	}
-	response := n.DispatchControlMessage(&ControlMessage{Type: int32(DelPeer), ParamsBody: &ParamsBody{PeerRecords: nPRecs}})
-	if response.Type == int32(Okay) {
+	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_DelPeer, ParamsBody: &ParamsBody{PeerRecords: nPRecs}})
+	if response.Type == ControlMessage_Okay {
 		fmt.Println("Done")
 	}
 }
 
 func (n *Node) getPeers() {
-	response := n.DispatchControlMessage(&ControlMessage{Type: int32(GetPeers)})
+	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_GetParams})
 	fmt.Println(response.ParamsBody.PeerRecords)
 }
 
@@ -164,16 +164,16 @@ func (n *Node) msg(params []string) {
 	for _, word := range params[2:] {
 		nMsg = nMsg + word + " "
 	}
-	n.DispatchControlMessage(&ControlMessage{Type: int32(Message), Spare: int32(id), Comment: nMsg})
+	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_Message, Spare: int32(id), Comment: nMsg})
 }
 
 func (n *Node) getStatus() {
-	response := n.DispatchControlMessage(&ControlMessage{Type: int32(GetStatus)})
+	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_GetStatus})
 	fmt.Println("id: " + strconv.Itoa(int(response.ParamsBody.MyPRecord.Id)) + "\tidOfMaster: " + strconv.Itoa(int(response.ParamsBody.IdOfMaster)))
 }
 
 func (n *Node) configParams(params []string) {
-	response := n.DispatchControlMessage(&ControlMessage{Type: int32(GetParams)})
+	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_GetParams})
 	pBody := response.ParamsBody
 	for i, param := range params {
 		if i == 0 {
@@ -201,9 +201,9 @@ func (n *Node) configParams(params []string) {
 		}
 
 	}
-	n.DispatchControlMessage(&ControlMessage{Type: int32(UpdateParams), ParamsBody: pBody})
+	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_UpdateParams, ParamsBody: pBody})
 }
 
 func (n *Node) startElection() {
-	n.DispatchControlMessage(&ControlMessage{Type: int32(StartElection)})
+	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_StartElection})
 }
