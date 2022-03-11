@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	NC "assignment1/main/NodeComm"
@@ -15,6 +15,7 @@ import (
 
 func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.ClientMessage) *NC.ClientMessage {
 	//Implement
+
 	if destPRec == nil {
 		return nil
 	}
@@ -32,6 +33,26 @@ func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.Clien
 	}
 	return response
 }
+
+// Mock Client Listener based off Jiawei's
+// func (c *Client) clientListener() {
+
+// 	if c.ClientID == -1 {
+// 		fmt.Println("Unable to start without ClientId set!")
+// 		return
+// 	}
+
+// 	cAddr := fmt.Sprintf("%s:%s", c.ClientAdd.IP, c.ClientAdd.Port)
+// 	fmt.Printf("Client %d started listening at %s\n", c.ClientID, cAddr)
+
+// 	lis, err := net.Listen("tcp", cAddr)
+// 	if err != nil {
+// 		log.Fatalf("Failed to hook into %s. %v", cAddr, err)
+// 	}
+
+// 	// Ask Jia Wei if I should be registering this to NodeCommServiceServer
+
+// }
 
 //Utility
 func connectTo(address, port string) (*grpc.ClientConn, error) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strconv"
 	"sync"
 
 	NodeComm "assignment1/main/NodeComm"
@@ -23,6 +24,14 @@ func main() {
 	verboseFlag := flag.Int("verbose", 1, "Set to 2 for verbose mode.")
 
 	flag.Parse()
+
+	dataPath := "./data" + strconv.Itoa(*nodeIDFlag)
+	lockPath := "./lock" + strconv.Itoa(*nodeIDFlag)
+
+	NodeComm.InitDirectory(dataPath, true)
+	NodeComm.InitDirectory(lockPath, false)
+	NodeComm.InitLockFiles(lockPath, dataPath)
+	NodeComm.AcquireWriteLock("sample1.txt.lock", lockPath, 5, *nodeIDFlag, true)
 
 	node := NodeComm.CreateNode(
 		*nodeIDFlag,

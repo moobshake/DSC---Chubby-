@@ -1,68 +1,128 @@
-package main
+package client
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
+
+	NC "assignment1/main/NodeComm"
 )
 
 //Create Client Struct here
-
-// Client must be able to send request to DNS server to find master
-// Client Struct inclusive of locks, id, peerrecord? Should we pass it in or have a global one?
-//
 const (
-	dns_path = "lookup.json"
+	lookup_path = "lookup.json"
 )
 
 // Represents the data structure in the lookup table
 // Fields are capitalized as only exported fields of a GO struct will be present in a JSON output
-type lookup_v struct {
-	NodeID int32
-	Ip     string
-	Port   string
+type lookup_val struct {
+	IP   string
+	Port string
 }
 
-// Client features
+// Client struct
 type Client struct {
-	ClientID   int
-	Master_add lookup_v
-	Lock       int
-	Handle     int
-	Action     int
+	ClientID  int
+	ClientAdd *lookup_val
+	MasterAdd *NC.PeerRecord
+	Lock      *Lock
+	Action    int
+}
+
+// Temp Lock struct
+type Lock struct {
+	Write     int    // only 1 client can hold
+	Read      []int  // multiple client can hold
+	LockDelay int64  // timestamp for timeout
+	Sequence  string // opaque byte-string
 }
 
 // Methods to implement
-// 1. Looking for master via master location request
-// 2. Directs any request it has to the specified address
-// 3. Ways to edit the lookup table? (Done by a simple replacement system)
+// 1 - Master Location Request
+// 2 - Read Message Request
+// 3 - Write Message Request
 
 // Initialises a client
-// Notes: Assuming 0 is this state where it has nothing
-func CreateClient(id int, lock int, Master_add lookup_v, Action int) *Client {
+// Notes: Majority of them are placeholder values
+func CreateClient(id int, ipAdd, port string, Master_add lookup_val, Action int) *Client {
 
 	c := Client{
-		ClientID: id,
-		Lock:     0,
-		Handle:   0,
-		Action:   0,
+		ClientID:  id,
+		ClientAdd: &lookup_val{IP: ipAdd, Port: port},
 	}
 
 	return &c
 }
 
-// Master location request
-func FindMaster() lookup_v {
-	dnsTable := read_DNS()
-	
+// Starting the client
+func (c *Client) StartClient() {
+	// go c.clientListener()
+	c.FindMaster()
+	fmt.Println("Client has a master now.")
+	time.Sleep(1 * time.Second)
+	c.startCLI()
 }
 
-// DNS Table Methods
+// Master location request
+func (c *Client) FindMaster() {
+	dnsTable := read_Lookup()
 
+	// Sending request for master node to every address listed in lookup json
+	for i := 0; i < len(dnsTable); i++ {
+		loc := dnsTable[i]
+		pr := NC.PeerRecord{
+			Id:      int32(-1),
+			Address: loc.IP,
+			Port:    loc.Port,
+		}
+		cm := NC.ClientMessage{
+			ClientID: int32(c.ClientID),
+			Type:     int32(1),
+			Spare:    -1,
+			Message:  -1,
+		}
+
+		res := c.DispatchClientMessage(&pr, &cm)
+		fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
+	}
+
+	// Hardcoded Master address temporarily
+	c.MasterAdd.Address = "127.0.0.1"
+	c.MasterAdd.Port = "9090"
+}
+
+// Making request
+// Types - Write, Read
+func (c Client) ClientRequest(reqType string) {
+
+	var cm NC.ClientMessage
+
+	switch reqType {
+	case "Read":
+		cm = NC.ClientMessage{
+			ClientID: int32(c.ClientID),
+			Type:     int32(2),
+		}
+		fmt.Println("Creating Read Request")
+
+	case "Write":
+		cm = NC.ClientMessage{
+			ClientID: int32(c.ClientID),
+			Type:     int32(3),
+		}
+		fmt.Println("Creating Write Request")
+	}
+
+	res := c.DispatchClientMessage(c.MasterAdd, &cm)
+	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
+}
+
+// Lookup Table Methods
 // Converts lookup json into an array of addresses
-func read_DNS() []lookup_v {
-	lookupT, err := os.Open(dns_path)
+func read_Lookup() []lookup_val {
+	lookupT, err := os.Open(lookup_path)
 
 	if err != nil {
 		fmt.Println(err)
@@ -70,29 +130,24 @@ func read_DNS() []lookup_v {
 
 	defer lookupT.Close()
 	byteValue, _ := ioutil.ReadAll(lookupT)
-	var result []lookup_v
+	var result []lookup_val
 	json.Unmarshal([]byte(byteValue), &result)
 
 	return result
 }
 
 // Method to add addresses to DNS table
-func update_DNS(nodeID int32, IP string, port string) {
+func update_Lookup(nodeID int32, IP string, port string) {
 
-	curDNS := read_DNS()
+	curTable := read_Lookup()
 
-	new_addr := lookup_v{
-		NodeID: nodeID,
-		Ip:     IP,
-		Port:   port,
+	new_addr := lookup_val{
+		IP:   IP,
+		Port: port,
 	}
 
-	curDNS = append(curDNS, new_addr)
+	curTable = append(curTable, new_addr)
 
-	file, _ := json.MarshalIndent(curDNS, "", "	")
-	_ = ioutil.WriteFile(dns_path, file, 0644)
-}
-
-func main() {
-
+	file, _ := json.MarshalIndent(curTable, "", "	")
+	_ = ioutil.WriteFile(lookup_path, file, 0644)
 }
