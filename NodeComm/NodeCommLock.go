@@ -69,7 +69,8 @@ func InitLockFiles(lock_path string, data_path string) {
 	}
 }
 
-func sequencerGenerator() string {
+// filename, mode (exclusive/shared), lock generation number
+func sequencerGenerator(filename string, mode string, lock_gen_num int) string {
 	return "sequence"
 }
 
@@ -98,7 +99,7 @@ func AcquireWriteLock(filename string, lockPath string, lockdelay int, client_id
 
 	if sequencer {
 		// generate sequence and return
-		l.Sequence = sequencerGenerator()
+		l.Sequence = sequencerGenerator(filename, "exclusive", 0)
 	}
 
 	data, err := json.MarshalIndent(l, "", " ")

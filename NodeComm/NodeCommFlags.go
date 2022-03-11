@@ -65,6 +65,7 @@ type ClientMessageFlags int32
 
 const (
 	DoNotUserZeroVal5 ClientMessageFlags = iota
-	FileWrite
+	FindMaster
 	FileRead
+	FileWrite
 )

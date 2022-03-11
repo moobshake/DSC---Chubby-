@@ -12,7 +12,7 @@ import (
 
 //Create Client Struct here
 const (
-	lookup_path = "lookup.json"
+	lookup_path = "Client/lookup.json"
 )
 
 // Represents the data structure in the lookup table
@@ -27,16 +27,8 @@ type Client struct {
 	ClientID  int
 	ClientAdd *lookup_val
 	MasterAdd *NC.PeerRecord
-	Lock      *Lock
+	Lock      *NC.Lock
 	Action    int
-}
-
-// Temp Lock struct
-type Lock struct {
-	Write     int    // only 1 client can hold
-	Read      []int  // multiple client can hold
-	LockDelay int64  // timestamp for timeout
-	Sequence  string // opaque byte-string
 }
 
 // Methods to implement
@@ -46,11 +38,13 @@ type Lock struct {
 
 // Initialises a client
 // Notes: Majority of them are placeholder values
-func CreateClient(id int, ipAdd, port string, Master_add lookup_val, Action int) *Client {
+func CreateClient(id int, ipAdd, port string) *Client {
 
 	c := Client{
 		ClientID:  id,
 		ClientAdd: &lookup_val{IP: ipAdd, Port: port},
+		MasterAdd: &NC.PeerRecord{},
+		Lock:      &NC.Lock{},
 	}
 
 	return &c
@@ -67,11 +61,11 @@ func (c *Client) StartClient() {
 
 // Master location request
 func (c *Client) FindMaster() {
-	dnsTable := read_Lookup()
+	lookupTable := read_Lookup()
 
 	// Sending request for master node to every address listed in lookup json
-	for i := 0; i < len(dnsTable); i++ {
-		loc := dnsTable[i]
+	for i := 0; i < len(lookupTable); i++ {
+		loc := lookupTable[i]
 		pr := NC.PeerRecord{
 			Id:      int32(-1),
 			Address: loc.IP,
@@ -85,12 +79,13 @@ func (c *Client) FindMaster() {
 		}
 
 		res := c.DispatchClientMessage(&pr, &cm)
-		fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
+		fmt.Println(res)
 	}
 
 	// Hardcoded Master address temporarily
 	c.MasterAdd.Address = "127.0.0.1"
 	c.MasterAdd.Port = "9090"
+	fmt.Println("Added Client address")
 }
 
 // Making request
