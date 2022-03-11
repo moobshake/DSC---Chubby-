@@ -73,7 +73,7 @@ func (c *Client) FindMaster() {
 		}
 		cm := NC.ClientMessage{
 			ClientID: int32(c.ClientID),
-			Type:     int32(1),
+			Type:     NC.ClientMessage_FindMaster,
 			Spare:    -1,
 			Message:  -1,
 		}
@@ -101,20 +101,22 @@ func (c Client) ClientRequest(reqType string) {
 	case "Read":
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
-			Type:     int32(2),
+			Type:     NC.ClientMessage_FileRead,
 		}
 		fmt.Printf("Client %d creating Read Request\n", c.ClientID)
 
 	case "Write":
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
-			Type:     int32(3),
+			Type:     NC.ClientMessage_FileWrite,
 		}
 		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
 	}
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
-	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
+
+	// fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
+	fmt.Printf("Master replied: %d", res.Type)
 }
 
 // Lookup Table Methods

@@ -3,21 +3,53 @@ package NodeComm;
 //protoc --go_out=. --go-grpc_out=. --go-grpc_opt=paths=source_relative NodeComm.proto
 option go_package = "/nodecomm;nodecomm";
 
+//Enums between 0 and 99 are common across message types
+//Enums after 100 are unique to a message
+
 message NodeMessage {
     PeerRecord fromPRecord = 1;
     int32 ToID = 2;
-    int32 Type = 3;
+    MessageType Type = 3;
     int32 Spare = 4;
     string Comment = 5;
     StandardBody StandardBody = 6;
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+        KeepAlive = 101;
+	    Standard = 102;
+    }
 }
 
 message CoordinationMessage {
     PeerRecord FromPRecord = 1;
     int32 spare = 2;
-    int32 Type = 3;
+    MessageType Type = 3;
     string Comment = 4;
     repeated PeerRecord PeerRecords = 5;
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+        ElectionResult = 101;
+        ElectSelf = 102;
+        RejectElect = 103;
+        ReqToJoin = 104;
+        RejectJoin = 105;
+        PeerInformation = 106;
+        RedirectToCoordinator = 107;
+        ReqToMerge = 108;
+        RejectMerge = 109;
+        ApptNewCoordinator = 110;
+        ReqToLeave = 111;
+        BadNodeReport = 112;
+        NotMaster = 113;
+    }
 }
 
 //1 -> False; 2 -> True
@@ -38,11 +70,32 @@ message StandardBody {
 }
 
 message ControlMessage {
-    int32 Type = 1;
+    MessageType Type = 1;
     int32 Spare = 2;
     string Comment = 3;
     ParamsBody ParamsBody = 4;
     NodeMessage NodeMessage = 5;
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+        StopListening = 101;
+        InitParams = 102;
+        UpdateParams = 103;
+        GetStatus = 104;
+        GetPeers = 105;
+        AddPeer = 106;
+        DelPeer = 107;
+        Okay = 108;
+        Message = 109;
+        RawMessage = 110;
+        JoinNetwork = 111;
+        LeaveNetwork = 112;
+        StartElection = 113;
+        GetParams = 114;
+    }
 }
 message ParamsBody {
     int32 Spare = 1;
@@ -55,14 +108,56 @@ message ParamsBody {
 
 message ClientMessage {
     int32 ClientID = 1;
-    int32 Type = 2;
+    MessageType Type = 2;
     int32 Spare = 3;
     int32 Message = 4;
     FileBody FileBody = 5;
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+        FileWrite = 101;
+        FileRead = 102;
+        ReqLock = 103;
+        RelLock = 104;
+        JoinNetwork = 105;
+        LeaveNetwork = 106;
+        FindMaster = 107;
+    }
 }
 
 message FileBody{
     string Name = 1;
+}
+
+message ServerMessage {
+    MessageType Type = 1;
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+    }
+}
+
+message EventMessage {
+    MessageType Type = 1;
+    string file_name = 2;
+    string lock_name = 3;
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+        MasterFailOver = 101;
+        FileContentModified = 102;
+        LockAquisition = 103;
+        ConflictingLock = 104;
+    }
 }
 
 service NodeCommService {
@@ -74,5 +169,9 @@ service NodeCommService {
     rpc Shutdown(ControlMessage) returns (ControlMessage){}
     rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
 
-    rpc SentClientMessage(ClientMessage) returns (ClientMessage){}
+    rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
+    rpc SendServerMessage(ServerMessage) returns (ClientMessage){}
+    
+    // Events are published from Server to Client
+    rpc SendEventMessage(EventMessage) returns (EventMessage){}
 }
