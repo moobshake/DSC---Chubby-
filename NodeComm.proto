@@ -95,6 +95,15 @@ message ControlMessage {
         LeaveNetwork = 112;
         StartElection = 113;
         GetParams = 114;
+        //Events
+        SubscribeFileModification = 115;
+        SubscribeLockAquisition = 116;
+        SubscribeLockConflict = 117;
+        SubscribeMasterFailover = 118;
+        PublishFileModification = 119;
+        PublishLockAquisition = 120;
+        PublishLockConflict = 121;
+        PublishMasterFailover = 122;
     }
 }
 message ParamsBody {
@@ -112,6 +121,8 @@ message ClientMessage {
     int32 Spare = 3;
     int32 Message = 4;
     FileBody FileBody = 5;
+    PeerRecord ClientAddress = 6;
+    string StringMessages = 7;
     enum MessageType {
         Empty = 0;
         Ack = 1;
@@ -125,6 +136,10 @@ message ClientMessage {
         JoinNetwork = 105;
         LeaveNetwork = 106;
         FindMaster = 107;
+        SubscribeFileModification = 108;
+        SubscribeLockAquisition = 109;
+        SubscribeLockConflict = 110;
+        SubscribeMasterFailover = 111;
     }
 }
 
@@ -171,7 +186,7 @@ service NodeCommService {
 
     rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
     rpc SendServerMessage(ServerMessage) returns (ClientMessage){}
-    
+
     // Events are published from Server to Client
     rpc SendEventMessage(EventMessage) returns (EventMessage){}
 }

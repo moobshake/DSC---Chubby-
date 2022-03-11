@@ -47,7 +47,8 @@ func main() {
 	// CLI Reader
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Choose type to activate (c/s1/s2/s3)")
-	fmt.Println("c - Client Node")
+	fmt.Println("c1 - Client 1 Node")
+	fmt.Println("c2 - Client 2 Node")
 	fmt.Println("s1 - Server 1 Node")
 	fmt.Println("s2 - Server 2 Node")
 	fmt.Println("s3 - Server 3 Node")
@@ -66,7 +67,7 @@ Loop:
 		}
 
 		switch tokenised[0] {
-		case "c":
+		case "c1":
 			fmt.Println("Entered Client")
 			// Client Requirements
 			cID := 1
@@ -78,7 +79,18 @@ Loop:
 				cPort,
 			)
 			c.StartClient()
-
+		case "c2":
+			fmt.Println("Entered Client")
+			// Client Requirements
+			cID := 2
+			cIP := "127.0.0.1"
+			cPort := "8001"
+			c := Client.CreateClient(
+				cID,
+				cIP,
+				cPort,
+			)
+			c.StartClient()
 		case "s1":
 			fmt.Println("Entered Server 1")
 			iFlag := 1

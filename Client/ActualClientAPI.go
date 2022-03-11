@@ -13,7 +13,7 @@ import (
 
 //Refer to NodCommFlags.go to see what flags are applicable for NC.ClientMessage
 
-func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.ClientMessage) *NC.ServerMessage {
+func (c *Client) DispatchClientMessage(destPRec *NC.PeerRecord, CliMsg *NC.ClientMessage) *NC.ClientMessage {
 	//Implement
 
 	if destPRec == nil {

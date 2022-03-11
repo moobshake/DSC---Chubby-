@@ -22,6 +22,8 @@ type Node struct {
 	electionStatus     *ElectionStatus
 	electionStatusLock sync.Mutex
 	verbose            int
+
+	eventClientTracker EventClientTracker
 }
 
 //CreateNode initialises a Node
@@ -137,10 +139,33 @@ func (n *Node) SendControlMessage(ctx context.Context, cMsg *ControlMessage) (*C
 		} else {
 			return &ControlMessage{Type: ControlMessage_Error, Comment: "Node is already offline!"}, nil
 		}
+
+	// Events
 	case ControlMessage_StartElection:
 		n.spoofElection()
 		return &ControlMessage{Type: ControlMessage_Okay}, nil
+	case ControlMessage_SubscribeMasterFailover:
+		n.subscribe_master_fail_over(cMsg.ParamsBody.MyPRecord)
+		return &ControlMessage{Type: ControlMessage_Okay}, nil
+	case ControlMessage_SubscribeFileModification:
+		n.subscribe_file_content_modification(cMsg.ParamsBody.MyPRecord, cMsg.Comment)
+		return &ControlMessage{Type: ControlMessage_Okay}, nil
+	case ControlMessage_SubscribeLockAquisition:
+		n.subscribe_lock_aquisition(cMsg.ParamsBody.MyPRecord, cMsg.Comment)
+		return &ControlMessage{Type: ControlMessage_Okay}, nil
+	case ControlMessage_SubscribeLockConflict:
+		n.subscribe_conflicting_lock_request(cMsg.ParamsBody.MyPRecord, cMsg.Comment)
+		return &ControlMessage{Type: ControlMessage_Okay}, nil
+	case ControlMessage_PublishMasterFailover:
+		n.Publish_master_fail_over()
+	case ControlMessage_PublishFileModification:
+		n.Publish_file_content_modification(cMsg.Comment)
+	case ControlMessage_PublishLockAquisition:
+		n.Publish_lock_aquisition(cMsg.Comment)
+	case ControlMessage_PublishLockConflict:
+		n.Publish_conflicting_lock_request(cMsg.Comment)
 	}
+	//TODO: Add here
 
 	return &ControlMessage{Type: ControlMessage_Error, Comment: "Unsupported function."}, nil
 }
@@ -200,7 +225,7 @@ func (n *Node) SendMessage(ctx context.Context, inMsg *NodeMessage) (*NodeMessag
 	}
 }
 
-//SendCoordinationMessage: Channgel for Coordination Messages
+//SendCoordinationMessage: Channel for Coordination Messages
 func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationMessage) (*CoordinationMessage, error) {
 	if !n.isOnline {
 		return &CoordinationMessage{Type: CoordinationMessage_Empty}, nil
@@ -289,7 +314,7 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationM
 			} else if n.IsMaster() { //Some other node think its the master, fix by re-triggering election
 				n.spoofElection()
 			} else { //The sendee node should not be sending a master-only message
-				nCoMsg.Comment = "Sendee node is not coordinator."
+				nCoMsg.Comment = "Sender node is not coordinator."
 				nCoMsg.Type = CoordinationMessage_NotMaster
 			}
 		case CoordinationMessage_ElectionResult, CoordinationMessage_ElectSelf, CoordinationMessage_RejectElect:
@@ -317,6 +342,30 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 	case ClientMessage_FileWrite:
 		ans = 7
 		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
+	case ClientMessage_SubscribeFileModification:
+		ans = 8
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeFileModification, CliMsg.StringMessages)
+	case ClientMessage_SubscribeLockAquisition:
+		ans = 9
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockAquisition, CliMsg.StringMessages)
+	case ClientMessage_SubscribeLockConflict:
+		ans = 10
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockConflict, CliMsg.StringMessages)
+	case ClientMessage_SubscribeMasterFailover:
+		ans = 11
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeMasterFailover, "")
 	}
 	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans)}, nil
+}
+
+// Used to dispatch control messages regarding client event subscriptions.
+// This is used when the server listener receives a client subscription request.
+func (n *Node) dispatchSubscriptionMessage(CliMsg *ClientMessage, msgType ControlMessage_MessageType, fileLockName string) {
+	cMsg := ControlMessage{Type: msgType, Comment: fileLockName, ParamsBody: &ParamsBody{}}
+	cMsg.ParamsBody.MyPRecord = &PeerRecord{Address: CliMsg.ClientAddress.Address, Port: CliMsg.ClientAddress.Port}
+	n.DispatchControlMessage(&cMsg)
 }

@@ -24,6 +24,7 @@ type lookup_val struct {
 
 // Client struct
 type Client struct {
+	NC.NodeCommServiceServer
 	ClientID  int
 	ClientAdd *lookup_val
 	MasterAdd *NC.PeerRecord
@@ -52,7 +53,7 @@ func CreateClient(id int, ipAdd, port string) *Client {
 
 // Starting the client
 func (c *Client) StartClient() {
-	// go c.clientListener()
+	go c.startClientListener()
 	c.FindMaster()
 	fmt.Println("Client has a master now.")
 	time.Sleep(1 * time.Second)
@@ -92,31 +93,63 @@ func (c *Client) FindMaster() {
 }
 
 // Making request
-// Types - Write, Read
-func (c Client) ClientRequest(reqType string) {
+// Types - Write, Read, Subsciptions
+// 1 input for AdditionalArgs is needed for file and lock subscriptions
+func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	var cm NC.ClientMessage
 
 	switch reqType {
-	case "Read":
+	case READ_CLI:
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
 			Type:     NC.ClientMessage_FileRead,
 		}
 		fmt.Printf("Client %d creating Read Request\n", c.ClientID)
 
-	case "Write":
+	case WRITE_CLI:
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
 			Type:     NC.ClientMessage_FileWrite,
 		}
 		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
+	case SUB_MASTER_FAILOVER_CLI:
+		cm = NC.ClientMessage{
+			ClientID:       int32(c.ClientID),
+			Type:           NC.ClientMessage_SubscribeMasterFailover,
+			StringMessages: "",
+			ClientAddress:  &NC.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
+		}
+		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, reqType)
+	case SUB_FILE_MOD_CLI:
+		cm = NC.ClientMessage{
+			ClientID:       int32(c.ClientID),
+			Type:           NC.ClientMessage_SubscribeFileModification,
+			StringMessages: additionalArgs[0],
+			ClientAddress:  &NC.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
+		}
+		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, reqType)
+	case SUB_LOCK_AQUIS_CLI:
+		cm = NC.ClientMessage{
+			ClientID:       int32(c.ClientID),
+			Type:           NC.ClientMessage_SubscribeLockAquisition,
+			StringMessages: additionalArgs[0],
+			ClientAddress:  &NC.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
+		}
+		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, reqType)
+	case SUB_LOCK_CONFLICT_CLI:
+		cm = NC.ClientMessage{
+			ClientID:       int32(c.ClientID),
+			Type:           NC.ClientMessage_SubscribeLockConflict,
+			StringMessages: additionalArgs[0],
+			ClientAddress:  &NC.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
+		}
+		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, reqType)
 	}
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
-	// fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
-	fmt.Printf("Master replied: %d", res.Type)
+	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
 }
 
 // Lookup Table Methods

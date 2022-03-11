@@ -43,6 +43,33 @@ Main:
 			n.getStatus()
 		case "startElection":
 			n.startElection()
+		case "publishFileMod":
+			// Testing Events
+			// Second arg should be the file name
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires File Name Input")
+			} else {
+				n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishFileModification, Comment: tokenised[1]})
+			}
+		case "publishLockAquis":
+			// Testing Events
+			// Second arg should be the lock name
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires Lock Name Input")
+			} else {
+				n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishLockAquisition, Comment: tokenised[1]})
+			}
+		case "publishLockConflict":
+			// Testing Events
+			// Second arg should be the lock name
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires Lock Name Input")
+			} else {
+				n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishLockConflict, Comment: tokenised[1]})
+			}
+		case "publishMasterFailover":
+			// Testing Events
+			n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishMasterFailover})
 		case "help":
 			printHelp(tokenised)
 		default:
@@ -64,6 +91,10 @@ func printHelp(params []string) {
 		fmt.Println("'msg':\t\t Send a plain text message to a peer node.")
 		fmt.Println("'getStatus':\t Obtain information about the node.")
 		fmt.Println("'startElection':\t Used to manually trigger an election.")
+		fmt.Println("'publishFileMod [file]':\t Used to manually publish a file modification.")
+		fmt.Println("'publishLockAquis [lock]':\t Used to manually publish a lock aquisition.")
+		fmt.Println("'publishLockConflict [lock]':\t Used to manually publish a lock conflict.")
+		fmt.Println("'publishMasterFailover':\t Used to manually publish a master failover.")
 		fmt.Println("'help':\t Prints this menu.")
 		return
 	}
