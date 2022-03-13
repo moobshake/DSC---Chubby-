@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 
 	cp "github.com/otiai10/copy"
 )
@@ -19,6 +20,7 @@ type Lock struct {
 	Sequence  string // opaque byte-string
 }
 
+// create lock directory
 func InitDirectory(path string, data bool) {
 	_, err := os.Stat(path)
 	if err != nil {
@@ -35,6 +37,7 @@ func InitDirectory(path string, data bool) {
 	}
 }
 
+// base on the file names, create a lock JSON with content
 func initLockContent(file os.File) {
 	l := Lock{Write: -1, Read: []int{-1}, LockDelay: 0, Sequence: ""}
 	data, err := json.MarshalIndent(l, "", " ")
@@ -47,6 +50,7 @@ func initLockContent(file os.File) {
 	}
 }
 
+// helper function to create files
 func createFile(path string, filename string, filetype string) {
 	newfile, err := os.Create(path + "/" + filename + filetype)
 	initLockContent(*newfile)
@@ -56,6 +60,7 @@ func createFile(path string, filename string, filetype string) {
 	}
 }
 
+// initialise lock files
 func InitLockFiles(lock_path string, data_path string) {
 	files, err := ioutil.ReadDir(data_path)
 	if err != nil {
@@ -71,10 +76,11 @@ func InitLockFiles(lock_path string, data_path string) {
 
 // filename, mode (exclusive/shared), lock generation number
 func sequencerGenerator(filename string, mode string, lock_gen_num int) string {
-	return "sequence"
+	return filename + ":" + mode + ":" + strconv.Itoa(lock_gen_num)
 }
 
-func AcquireWriteLock(filename string, lockPath string, lockdelay int, client_id int, sequencer bool) {
+// acquire write lock
+func (n *Node) AcquireWriteLock(filename string, lockPath string, lockdelay int, client_id int, sequencer bool) {
 	file, err := ioutil.ReadFile(lockPath + "/" + filename)
 	if err != nil {
 		log.Fatal(err)
@@ -98,8 +104,10 @@ func AcquireWriteLock(filename string, lockPath string, lockdelay int, client_id
 	}
 
 	if sequencer {
+		// add 1 to lock gen number
+		n.lockGenerationNumber++
 		// generate sequence and return
-		l.Sequence = sequencerGenerator(filename, "exclusive", 0)
+		l.Sequence = sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
 	}
 
 	data, err := json.MarshalIndent(l, "", " ")
@@ -113,7 +121,8 @@ func AcquireWriteLock(filename string, lockPath string, lockdelay int, client_id
 
 }
 
-func ReleaseWriteLock(filename string, lockPath string, client_id int) {
+// release the write lock
+func (n *Node) ReleaseWriteLock(filename string, lockPath string, client_id int) {
 	file, err := ioutil.ReadFile(lockPath + "/" + filename)
 	if err != nil {
 		log.Fatal(err)

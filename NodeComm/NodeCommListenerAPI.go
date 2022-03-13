@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,14 +15,17 @@ import (
 //Node is a logical structure for the bully node.
 type Node struct {
 	NodeCommServiceServer
-	idOfMaster         int
-	peerRecords        []*PeerRecord
-	peerRecordsLock    sync.Mutex
-	myPRecord          *PeerRecord
-	isOnline           bool
-	electionStatus     *ElectionStatus
-	electionStatusLock sync.Mutex
-	verbose            int
+	idOfMaster           int
+	peerRecords          []*PeerRecord
+	peerRecordsLock      sync.Mutex
+	myPRecord            *PeerRecord
+	isOnline             bool
+	electionStatus       *ElectionStatus
+	electionStatusLock   sync.Mutex
+	verbose              int
+	lockGenerationNumber int
+	nodeDataPath         string
+	nodeLockPath         string
 
 	eventClientTracker EventClientTracker
 }
@@ -29,11 +33,18 @@ type Node struct {
 //CreateNode initialises a Node
 func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 	n := Node{
-		idOfMaster:     idOfMaster,
-		myPRecord:      &PeerRecord{Id: int32(id), Address: ipAddr, Port: port},
-		electionStatus: &ElectionStatus{OngoingElection: 1, IsWinning: 1, Active: 1, TimeoutDuration: int32(3)},
-		verbose:        verbose,
+		idOfMaster:           idOfMaster,
+		myPRecord:            &PeerRecord{Id: int32(id), Address: ipAddr, Port: port},
+		electionStatus:       &ElectionStatus{OngoingElection: 1, IsWinning: 1, Active: 1, TimeoutDuration: int32(3)},
+		verbose:              verbose,
+		lockGenerationNumber: 0,
+		nodeDataPath:         "./data" + strconv.Itoa(id),
+		nodeLockPath:         "./lock" + strconv.Itoa(id),
 	}
+
+	InitDirectory(n.nodeDataPath, true)
+	InitDirectory(n.nodeLockPath, false)
+	InitLockFiles(n.nodeLockPath, n.nodeDataPath)
 	return &n
 }
 
