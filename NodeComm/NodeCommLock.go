@@ -62,7 +62,7 @@ func createFile(path string, filename string, filetype string) {
 
 // initialise lock files
 func InitLockFiles(lock_path string, data_path string) {
-	files, err := ioutil.ReadDir(data_path)
+	files, err := ioutil.ReadDir(data_path + "/")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,6 +72,18 @@ func InitLockFiles(lock_path string, data_path string) {
 			createFile(lock_path, file.Name(), ".lock")
 		}
 	}
+}
+
+func list_files(data_path string) string {
+	files, err := ioutil.ReadDir(data_path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f := ""
+	for _, file := range files {
+		f += file.Name() + "\n"
+	}
+	return f
 }
 
 // filename, mode (exclusive/shared), lock generation number

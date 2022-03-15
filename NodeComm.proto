@@ -113,6 +113,9 @@ message ParamsBody {
     int32 IdOfMaster = 4;
     ElectionStatus ElectionStatus = 5;
     int32 Verbose = 6;
+    int32 LockGenerationNumber = 7;
+    string NodeDataPath = 8;
+    string NodeLockPath = 9;
 }
 
 message ClientMessage {
@@ -140,6 +143,7 @@ message ClientMessage {
         SubscribeLockAquisition = 109;
         SubscribeLockConflict = 110;
         SubscribeMasterFailover = 111;
+        ListFile = 112;
     }
 }
 

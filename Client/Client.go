@@ -145,11 +145,18 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 			ClientAddress:  &NC.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
 		}
 		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, reqType)
+	case LIST_FILE_CLI:
+		cm = NC.ClientMessage{
+			ClientID: int32(c.ClientID),
+			Type:     NC.ClientMessage_ListFile,
+		}
+		fmt.Printf("Client %d creating List File Request %s \n", c.ClientID, reqType)
 	}
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
 	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
+	fmt.Printf(res.StringMessages)
 }
 
 // Lookup Table Methods

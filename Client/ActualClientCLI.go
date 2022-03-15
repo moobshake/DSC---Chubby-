@@ -16,6 +16,7 @@ const (
 	SUB_LOCK_AQUIS_CLI      = "subLockAquis"
 	SUB_LOCK_CONFLICT_CLI   = "subLockConflict"
 	SUB_MASTER_FAILOVER_CLI = "subMasterFailover"
+	LIST_FILE_CLI           = "ls"
 )
 
 //Implement a CLI here that is built on top of the ActualClientAPI.go
@@ -61,6 +62,8 @@ Main:
 			} else {
 				C.ClientRequest(SUB_LOCK_CONFLICT_CLI, tokenised[1])
 			}
+		case LIST_FILE_CLI:
+			C.ClientRequest(LIST_FILE_CLI)
 		case "help":
 			printHelp(tokenised)
 		default:

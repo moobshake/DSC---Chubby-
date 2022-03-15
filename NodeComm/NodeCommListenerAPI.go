@@ -51,7 +51,7 @@ func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 //StartNode starts the listener, initialises the params of the listener, and starts the UI.
 func (n *Node) StartNode() {
 	go n.startListener()
-	pBody := ParamsBody{MyPRecord: n.myPRecord, IdOfMaster: int32(n.idOfMaster), ElectionStatus: n.electionStatus, Verbose: int32(n.verbose)}
+	pBody := ParamsBody{MyPRecord: n.myPRecord, IdOfMaster: int32(n.idOfMaster), ElectionStatus: n.electionStatus, Verbose: int32(n.verbose), LockGenerationNumber: int32(n.lockGenerationNumber), NodeDataPath: n.nodeDataPath, NodeLockPath: n.nodeLockPath}
 	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_InitParams, ParamsBody: &pBody})
 	time.Sleep(time.Second * 1)
 	n.startCLI()
@@ -102,6 +102,9 @@ func (n *Node) SendControlMessage(ctx context.Context, cMsg *ControlMessage) (*C
 		n.idOfMaster = int(cMsg.ParamsBody.IdOfMaster)
 		n.myPRecord = cMsg.ParamsBody.MyPRecord
 		n.verbose = int(cMsg.ParamsBody.Verbose)
+		n.lockGenerationNumber = int(cMsg.ParamsBody.LockGenerationNumber)
+		n.nodeDataPath = cMsg.ParamsBody.NodeDataPath
+		n.nodeLockPath = cMsg.ParamsBody.NodeLockPath
 		return &ControlMessage{Type: ControlMessage_Okay}, nil
 	case ControlMessage_GetParams:
 		pBody := ParamsBody{
@@ -369,6 +372,11 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		ans = 11
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
 		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeMasterFailover, "")
+	case ClientMessage_ListFile:
+		ans = 12
+		fmt.Printf("> Client %d requesting to list files\n", CliMsg.ClientID)
+		f := list_files(n.nodeDataPath)
+		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans), StringMessages: f}, nil
 	}
 	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans)}, nil
 }
