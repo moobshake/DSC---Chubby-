@@ -45,7 +45,7 @@ Main:
 			if len(tokenised) < 2 {
 				fmt.Println("Invalid Use of Command. Requires File Name Input")
 			} else {
-				C.ClientRequest(READ_CLI, tokenised[1])
+				C.sendClientReadRequest(tokenised[1])
 			}
 		case SUB_MASTER_FAILOVER_CLI:
 			C.ClientRequest(SUB_MASTER_FAILOVER_CLI)

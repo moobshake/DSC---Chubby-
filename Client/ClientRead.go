@@ -14,12 +14,17 @@ import (
 // Sends a read request to the server.
 // The server streams back the file content if the client has a valid lock.
 // Returns if the read request was successful
-func (c *Client) sendClientReadRequest(destPRec *NC.PeerRecord, cliMsg *NC.ClientMessage) {
-	if destPRec == nil {
-		return
+func (c *Client) sendClientReadRequest(readFileName string) {
+	fmt.Printf("Client %d creating Read Request\n", c.ClientID)
+
+	cliMsg := NC.ClientMessage{
+		ClientID: int32(c.ClientID),
+		Type:     NC.ClientMessage_FileRead,
+		// The name of the file to read
+		StringMessages: readFileName,
 	}
 
-	conn, err := connectTo(destPRec.Address, destPRec.Port)
+	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
 	if err != nil {
 		return
 	}
@@ -28,7 +33,7 @@ func (c *Client) sendClientReadRequest(destPRec *NC.PeerRecord, cliMsg *NC.Clien
 
 	cli := NC.NewNodeCommServiceClient(conn)
 
-	stream, err := cli.RequestReadFile(context.Background(), cliMsg)
+	stream, err := cli.RequestReadFile(context.Background(), &cliMsg)
 
 	if err != nil {
 		fmt.Println("sendClientReadRequest: ERROR", err)
@@ -46,9 +51,15 @@ func (c *Client) sendClientReadRequest(destPRec *NC.PeerRecord, cliMsg *NC.Clien
 		if err != nil {
 			fmt.Println("sendClientReadRequest: ERROR", err)
 		}
+
+		if fileContent.Type == NC.FileBodyMessage_Error {
+			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
+			break
+		}
 		c.writeToCache(fileContent, truncateFile)
 		// Append the rest of the content to the file
 		truncateFile = false
+		fmt.Println("Client received a successful read block")
 	}
 
 }

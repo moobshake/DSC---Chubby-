@@ -96,25 +96,14 @@ func (c *Client) FindMaster() {
 }
 
 // Making request
-// Types - Write, Read, Subsciptions
+// Types - Write, Subsciptions
+// Read is not processed here - go to ClientRead.go
 // 1 input for AdditionalArgs is needed for file and lock subscriptions
 func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	var cm NC.ClientMessage
 
 	switch reqType {
-	case READ_CLI:
-		cm = NC.ClientMessage{
-			ClientID: int32(c.ClientID),
-			Type:     NC.ClientMessage_FileRead,
-			// The name of the file to read
-			StringMessages: additionalArgs[0],
-		}
-		fmt.Printf("Client %d creating Read Request\n", c.ClientID)
-		c.sendClientReadRequest(c.MasterAdd, &cm)
-		// Note we let sendClientReadRequest handle the sending and receiving of
-		// the stream. Hence RETURN from this function.
-		return
 	case WRITE_CLI:
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),

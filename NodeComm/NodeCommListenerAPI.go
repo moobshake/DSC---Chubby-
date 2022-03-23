@@ -469,6 +469,12 @@ func (n *Node) RequestReadFile(CliMsg *ClientMessage, stream NodeCommService_Req
 		return nil
 	} else {
 		// Return an error
+		fileContent := FileBodyMessage{
+			Type: FileBodyMessage_Error,
+		}
+		if err := stream.Send(&fileContent); err != nil {
+			return err
+		}
 		return nil
 	}
 
