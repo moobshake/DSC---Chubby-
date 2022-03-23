@@ -123,7 +123,7 @@ message ClientMessage {
     MessageType Type = 2;
     int32 Spare = 3;
     int32 Message = 4;
-    FileBody FileBody = 5;
+    FileBodyMessage FileBody = 5;
     PeerRecord ClientAddress = 6;
     string StringMessages = 7;
     enum MessageType {
@@ -147,8 +147,21 @@ message ClientMessage {
     }
 }
 
-message FileBody{
-    string Name = 1;
+// This message is used when sending over a file through a stream
+message FileBodyMessage {
+    MessageType Type = 1;
+    string file_name = 2;
+    bytes file_content = 3; 
+    
+    enum MessageType {
+        Empty = 0;
+        Ack = 1;
+        Warning = 2;
+        Error = 3;
+        NotInNetwork = 4;
+        ReadMode = 101;
+        WriteMode = 102;
+    }
 }
 
 message ServerMessage {
@@ -179,6 +192,8 @@ message EventMessage {
     }
 }
 
+
+
 service NodeCommService {
     rpc KeepAlive(NodeMessage) returns (NodeMessage){}
     rpc SendMessage(NodeMessage) returns (NodeMessage) {}
@@ -193,4 +208,7 @@ service NodeCommService {
 
     // Events are published from Server to Client
     rpc SendEventMessage(EventMessage) returns (EventMessage){}
-}
+
+    // Client asks for a file in Read-Mode
+    rpc RequestReadFile(ClientMessage) returns (stream FileBodyMessage) {}
+} 

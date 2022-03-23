@@ -10,9 +10,12 @@ import (
 	NC "assignment1/main/NodeComm"
 )
 
-//Create Client Struct here
 const (
 	lookup_path = "Client/lookup.json"
+	// Full cache file location:
+	//     CACHE_ROOT/CACHE_DIR_PREFIX_CLIENT_ID/file
+	CACHE_ROOT       = "client_cache"
+	CACHE_DIR_PREFIX = "client_cache"
 )
 
 // Represents the data structure in the lookup table
@@ -104,9 +107,14 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
 			Type:     NC.ClientMessage_FileRead,
+			// The name of the file to read
+			StringMessages: additionalArgs[0],
 		}
 		fmt.Printf("Client %d creating Read Request\n", c.ClientID)
-
+		c.sendClientReadRequest(c.MasterAdd, &cm)
+		// Note we let sendClientReadRequest handle the sending and receiving of
+		// the stream. Hence RETURN from this function.
+		return
 	case WRITE_CLI:
 		cm = NC.ClientMessage{
 			ClientID: int32(c.ClientID),
