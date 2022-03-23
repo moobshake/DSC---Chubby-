@@ -70,15 +70,15 @@ func (n *Node) subscribe_conflicting_lock_request(client_record *PeerRecord, wat
 	}
 }
 
-func (n *Node) print_subscription_map(subscription_map map[string][]*PeerRecord) {
+func (n *Node) Print_subscription_map(subscription_map map[string][]*PeerRecord) {
 	for key := range subscription_map {
 		fmt.Println("key:", key)
-		n.print_record_array(subscription_map[key])
+		n.Print_record_array(subscription_map[key])
 		fmt.Print("\n")
 	}
 }
 
-func (n *Node) print_record_array(records []*PeerRecord) {
+func (n *Node) Print_record_array(records []*PeerRecord) {
 	for _, record := range records {
 		fmt.Print(record.Address, ":", record.Port, ", ")
 	}
