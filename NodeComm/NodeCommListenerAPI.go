@@ -3,13 +3,24 @@ package nodecomm
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
+)
+
+const (
+	LOCAL_ROOT_PATH = "."
+	// data{n} where n is the node ID eg data1
+	LOCAL_DATA_DIR_PREFIX = "data"
+	// lock{n} where n is the node ID eg lock1
+	LOCAL_LOCK_DIR_PREFIX = "lock"
 )
 
 //Node is a logical structure for the bully node.
@@ -38,8 +49,8 @@ func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 		electionStatus:       &ElectionStatus{OngoingElection: 1, IsWinning: 1, Active: 1, TimeoutDuration: int32(3)},
 		verbose:              verbose,
 		lockGenerationNumber: 0,
-		nodeDataPath:         "./data" + strconv.Itoa(id),
-		nodeLockPath:         "./lock" + strconv.Itoa(id),
+		nodeDataPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_DIR_PREFIX+strconv.Itoa(id)),
+		nodeLockPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_LOCK_DIR_PREFIX+strconv.Itoa(id)),
 	}
 
 	InitDirectory(n.nodeDataPath, true)
@@ -343,7 +354,8 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationM
 	return &nCoMsg, nil
 }
 
-//SendClientMessage: Channel for ClientMessages
+// SendClientMessage: Channel for ClientMessages
+// Note: Read Requests are not processed here
 func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*ClientMessage, error) {
 
 	var ans int32
@@ -364,10 +376,6 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		// Find master
 		ans = 5
 		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
-	case ClientMessage_FileRead:
-		// Client request read
-		ans = 6
-		fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 	case ClientMessage_FileWrite:
 		ans = 7
 		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
@@ -392,8 +400,12 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		fmt.Printf("> Client %d requesting to list files\n", CliMsg.ClientID)
 		f := list_files(n.nodeDataPath)
 		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans), StringMessages: f}, nil
+	default:
+		ans = -1
+		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}
-	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans)}, nil
+
+	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Error, Message: int32(ans)}, nil
 }
 
 // Used to dispatch control messages regarding client event subscriptions.
@@ -417,4 +429,47 @@ func (n *Node) DispatchClientMessage(destPRec *PeerRecord, CliMsg *ClientMessage
 		fmt.Println("Error dispatching control message:", err)
 	}
 	return response
+}
+
+// Stream the required file from local data to the client in batches
+func (n *Node) RequestReadFile(CliMsg *ClientMessage, stream NodeCommService_RequestReadFileServer) error {
+	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
+
+	if n.validateReadRequest(CliMsg) {
+		// Get the file from the local dir in batches
+		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
+		file, err := os.Open(localFilePath)
+		if err != nil {
+			fmt.Println("CLIENT FILE READ REQUEST ERROR:", err)
+		}
+		defer file.Close()
+
+		buffer := make([]byte, READ_MAX_BYTE_SIZE)
+
+		for {
+			numBytes, err := file.Read(buffer)
+
+			if err != nil {
+				if err != io.EOF {
+					fmt.Println(err)
+				}
+				break
+			}
+			fileContent := FileBodyMessage{
+				Type:        FileBodyMessage_ReadMode,
+				FileName:    CliMsg.StringMessages,
+				FileContent: buffer[:numBytes],
+			}
+
+			if err := stream.Send(&fileContent); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	} else {
+		// Return an error
+		return nil
+	}
+
 }

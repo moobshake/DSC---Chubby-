@@ -27,6 +27,8 @@ type NodeCommServiceClient interface {
 	SendServerMessage(ctx context.Context, in *ServerMessage, opts ...grpc.CallOption) (*ClientMessage, error)
 	// Events are published from Server to Client
 	SendEventMessage(ctx context.Context, in *EventMessage, opts ...grpc.CallOption) (*EventMessage, error)
+	// Client asks for a file in Read-Mode
+	RequestReadFile(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (NodeCommService_RequestReadFileClient, error)
 }
 
 type nodeCommServiceClient struct {
@@ -109,6 +111,38 @@ func (c *nodeCommServiceClient) SendEventMessage(ctx context.Context, in *EventM
 	return out, nil
 }
 
+func (c *nodeCommServiceClient) RequestReadFile(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (NodeCommService_RequestReadFileClient, error) {
+	stream, err := c.cc.NewStream(ctx, &NodeCommService_ServiceDesc.Streams[0], "/NodeComm.NodeCommService/RequestReadFile", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &nodeCommServiceRequestReadFileClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type NodeCommService_RequestReadFileClient interface {
+	Recv() (*FileBodyMessage, error)
+	grpc.ClientStream
+}
+
+type nodeCommServiceRequestReadFileClient struct {
+	grpc.ClientStream
+}
+
+func (x *nodeCommServiceRequestReadFileClient) Recv() (*FileBodyMessage, error) {
+	m := new(FileBodyMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NodeCommServiceServer is the server API for NodeCommService service.
 // All implementations must embed UnimplementedNodeCommServiceServer
 // for forward compatibility
@@ -122,6 +156,8 @@ type NodeCommServiceServer interface {
 	SendServerMessage(context.Context, *ServerMessage) (*ClientMessage, error)
 	// Events are published from Server to Client
 	SendEventMessage(context.Context, *EventMessage) (*EventMessage, error)
+	// Client asks for a file in Read-Mode
+	RequestReadFile(*ClientMessage, NodeCommService_RequestReadFileServer) error
 	mustEmbedUnimplementedNodeCommServiceServer()
 }
 
@@ -152,6 +188,9 @@ func (UnimplementedNodeCommServiceServer) SendServerMessage(context.Context, *Se
 }
 func (UnimplementedNodeCommServiceServer) SendEventMessage(context.Context, *EventMessage) (*EventMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendEventMessage not implemented")
+}
+func (UnimplementedNodeCommServiceServer) RequestReadFile(*ClientMessage, NodeCommService_RequestReadFileServer) error {
+	return status.Errorf(codes.Unimplemented, "method RequestReadFile not implemented")
 }
 func (UnimplementedNodeCommServiceServer) mustEmbedUnimplementedNodeCommServiceServer() {}
 
@@ -310,6 +349,27 @@ func _NodeCommService_SendEventMessage_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeCommService_RequestReadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ClientMessage)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NodeCommServiceServer).RequestReadFile(m, &nodeCommServiceRequestReadFileServer{stream})
+}
+
+type NodeCommService_RequestReadFileServer interface {
+	Send(*FileBodyMessage) error
+	grpc.ServerStream
+}
+
+type nodeCommServiceRequestReadFileServer struct {
+	grpc.ServerStream
+}
+
+func (x *nodeCommServiceRequestReadFileServer) Send(m *FileBodyMessage) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // NodeCommService_ServiceDesc is the grpc.ServiceDesc for NodeCommService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -350,6 +410,12 @@ var NodeCommService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NodeCommService_SendEventMessage_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "RequestReadFile",
+			Handler:       _NodeCommService_RequestReadFile_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "NodeComm.proto",
 }

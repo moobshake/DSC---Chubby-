@@ -41,7 +41,12 @@ Main:
 		case WRITE_CLI:
 			C.ClientRequest(WRITE_CLI)
 		case READ_CLI:
-			C.ClientRequest(READ_CLI)
+			// Expect the file name to follow the read request token
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires File Name Input")
+			} else {
+				C.ClientRequest(READ_CLI, tokenised[1])
+			}
 		case SUB_MASTER_FAILOVER_CLI:
 			C.ClientRequest(SUB_MASTER_FAILOVER_CLI)
 		case SUB_FILE_MOD_CLI:
