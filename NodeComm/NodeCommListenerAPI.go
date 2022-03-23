@@ -242,6 +242,11 @@ func (n *Node) SendMessage(ctx context.Context, inMsg *NodeMessage) (*NodeMessag
 //SendCoordinationMessage: Channel for Coordination Messages
 func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationMessage) (*CoordinationMessage, error) {
 	if !n.isOnline {
+		if coMsg.Type == CoordinationMessage_WakeUpAndJoinNetwork {
+			fmt.Println("This node has received a WAKEUP message from a coordinator.")
+			//LOOK HERE
+			n.onlineNode()
+		}
 		return &CoordinationMessage{Type: CoordinationMessage_Empty}, nil
 	}
 	if n.verbose == 2 {

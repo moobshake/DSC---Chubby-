@@ -27,6 +27,10 @@ MainLoop:
 		userInput = scanner.Text()
 		tokenised := strings.Fields(userInput)
 
+		if len(tokenised) == 0 {
+			return
+		}
+
 		switch strings.ToLower(tokenised[0]) {
 
 		case "config":

@@ -49,6 +49,7 @@ message CoordinationMessage {
         ReqToLeave = 111;
         BadNodeReport = 112;
         NotMaster = 113;
+        WakeUpAndJoinNetwork = 114;
     }
 }
 
