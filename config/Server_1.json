@@ -1,0 +1,9 @@
+{
+	"NodeID": 1,
+	"NodeIP": "127.0.0.1",
+	"NodePort": "9090",
+	"Verbose": 1,
+	"IdOfMaster": 1,
+	"ConfigName": "Server_1",
+	"NodeType": "server"
+}

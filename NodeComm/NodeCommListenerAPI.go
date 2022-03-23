@@ -343,6 +343,16 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 
 	var ans int32
 
+	//If this server is not the master
+	if !(n.IsMaster()) {
+		switch CliMsg.Type {
+		case ClientMessage_FindMaster:
+			n.DispatchClientMessage(CliMsg.ClientAddress, &ClientMessage{Type: ClientMessage_RedirectToCoordinator, Spare: int32(n.idOfMaster), ClientAddress: n.getPeerRecord(n.idOfMaster, true)})
+		default:
+			n.DispatchClientMessage(CliMsg.ClientAddress, &ClientMessage{Type: ClientMessage_RedirectToCoordinator, Spare: int32(n.idOfMaster), ClientAddress: n.getPeerRecord(n.idOfMaster, true)})
+		}
+	}
+
 	// Replies with master address
 	switch CliMsg.Type {
 	case ClientMessage_FindMaster:
@@ -387,4 +397,19 @@ func (n *Node) dispatchSubscriptionMessage(CliMsg *ClientMessage, msgType Contro
 	cMsg := ControlMessage{Type: msgType, Comment: fileLockName, ParamsBody: &ParamsBody{}}
 	cMsg.ParamsBody.MyPRecord = &PeerRecord{Address: CliMsg.ClientAddress.Address, Port: CliMsg.ClientAddress.Port}
 	n.DispatchControlMessage(&cMsg)
+}
+
+func (n *Node) DispatchClientMessage(destPRec *PeerRecord, CliMsg *ClientMessage) *ClientMessage {
+	conn, err := connectTo(destPRec.Address, destPRec.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+	}
+	defer conn.Close()
+
+	c := NewNodeCommServiceClient(conn)
+	response, err := c.SendClientMessage(context.Background(), CliMsg)
+	if err != nil {
+		fmt.Println("Error dispatching control message:", err)
+	}
+	return response
 }

@@ -144,6 +144,7 @@ message ClientMessage {
         SubscribeLockConflict = 110;
         SubscribeMasterFailover = 111;
         ListFile = 112;
+        RedirectToCoordinator = 113;
     }
 }
 
