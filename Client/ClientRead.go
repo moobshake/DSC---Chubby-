@@ -56,7 +56,6 @@ func (c *Client) sendClientReadRequest(destPRec *NC.PeerRecord, cliMsg *NC.Clien
 // This function appends the file information to the end of the file.
 // If truncateFile is true, the file is truncated to 0 first before appending the information.
 func (c *Client) writeToCache(fileContentMessage *NC.FileBodyMessage, truncateFile bool) {
-	fmt.Println("writing client")
 	// Create cache directory if not exists
 	cacheFilePath := filepath.Join(CACHE_ROOT, CACHE_DIR_PREFIX+"_"+strconv.Itoa(c.ClientID))
 	err := os.MkdirAll(cacheFilePath, os.ModePerm)
