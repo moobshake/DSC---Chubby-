@@ -379,6 +379,9 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 	case ClientMessage_FileWrite:
 		ans = 7
 		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
+		b, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		fmt.Printf("%v %v\n", b, seq)
+
 	case ClientMessage_SubscribeFileModification:
 		ans = 8
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())

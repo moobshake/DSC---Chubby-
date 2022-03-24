@@ -2,6 +2,7 @@ package nodecomm
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -118,8 +119,8 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
 
 	l.Write[client_id] = LockValues{sequence: s, lockdelay: lockdelay}
-
-	data, err := json.MarshalIndent(l, "", " ")
+	fmt.Println(l.Write)
+	data, err := json.Marshal(l)
 	if err != nil {
 		log.Fatal(err)
 	}

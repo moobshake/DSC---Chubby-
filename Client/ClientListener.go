@@ -31,6 +31,6 @@ func (c *Client) startClientListener() {
 
 // Respond to an event message
 func (c *Client) SendEventMessage(ctx context.Context, eventMsg *NC.EventMessage) (*NC.EventMessage, error) {
-	fmt.Printf("> Client %s receieved an event notification \n", eventMsg.Type.String())
+	fmt.Printf("> Client %s received an event notification \n", eventMsg.Type.String())
 	return &NC.EventMessage{Type: NC.EventMessage_Ack}, nil
 }

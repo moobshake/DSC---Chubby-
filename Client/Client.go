@@ -25,13 +25,20 @@ type lookup_val struct {
 	Port string
 }
 
+// Locks tracking
+type lock struct {
+	l_type    string
+	sequencer string
+}
+
 // Client struct
+// Lock is a string temporarily (Assume acquiring one lock)
 type Client struct {
 	NC.NodeCommServiceServer
 	ClientID  int
 	ClientAdd *lookup_val
 	MasterAdd *NC.PeerRecord
-	Lock      *NC.Lock
+	Locks     map[string]lock // Map where key = filename, value = lock details
 	Action    int
 }
 
@@ -48,7 +55,6 @@ func CreateClient(id int, ipAdd, port string) *Client {
 		ClientID:  id,
 		ClientAdd: &lookup_val{IP: ipAdd, Port: port},
 		MasterAdd: &NC.PeerRecord{},
-		Lock:      &NC.Lock{},
 	}
 
 	return &c
@@ -105,9 +111,13 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	switch reqType {
 	case WRITE_CLI:
+
+		fmt.Printf("Args: %v\n", additionalArgs)
+
 		cm = NC.ClientMessage{
-			ClientID: int32(c.ClientID),
-			Type:     NC.ClientMessage_FileWrite,
+			ClientID:       int32(c.ClientID),
+			Type:           NC.ClientMessage_FileWrite,
+			StringMessages: additionalArgs[0],
 		}
 		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
 	case SUB_MASTER_FAILOVER_CLI:
@@ -151,6 +161,12 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 	}
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
+
+	if res.Message == 114 || res.Message == 115 {
+		c = recvLock(c, res.StringMessages, "read")
+	} else if res.Message == 115 {
+		c = recvLock(c, res.StringMessages, "write")
+	}
 
 	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
 	fmt.Printf(res.StringMessages)

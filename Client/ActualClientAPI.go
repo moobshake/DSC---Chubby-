@@ -60,3 +60,4 @@ func connectTo(address, port string) (*grpc.ClientConn, error) {
 	conn, err := grpc.Dial(address+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	return conn, err
 }
+

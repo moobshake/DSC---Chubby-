@@ -39,7 +39,7 @@ Main:
 		case EXIT_CLI:
 			break Main
 		case WRITE_CLI:
-			C.ClientRequest(WRITE_CLI)
+			C.ClientRequest(WRITE_CLI, tokenised[1])
 		case READ_CLI:
 			// Expect the file name to follow the read request token
 			if len(tokenised) < 2 {

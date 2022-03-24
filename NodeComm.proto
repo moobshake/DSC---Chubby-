@@ -146,6 +146,8 @@ message ClientMessage {
         SubscribeMasterFailover = 111;
         ListFile = 112;
         RedirectToCoordinator = 113;
+        ReadLock = 114;
+        WriteLock = 115;
     }
 }
 
