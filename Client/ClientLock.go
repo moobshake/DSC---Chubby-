@@ -21,11 +21,14 @@ func recvLock(c Client, sequencer string, lType string) Client {
 			l_type:    "write",
 			sequencer: sequencer,
 		}
+	} else {
+		fmt.Println("Lock was not available")
+		return c
 	}
 
 	fileName := strings.Split(sequencer, ":")[0]
 	c.Locks[fileName] = newLock
-
+	fmt.Printf("Client %d lock status: %v", c.ClientID, c.Locks)
 	return c
 }
 

@@ -55,6 +55,7 @@ func CreateClient(id int, ipAdd, port string) *Client {
 		ClientID:  id,
 		ClientAdd: &lookup_val{IP: ipAdd, Port: port},
 		MasterAdd: &NC.PeerRecord{},
+		Locks:     map[string]lock{},
 	}
 
 	return &c
@@ -162,9 +163,10 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
-	if res.Message == 114 || res.Message == 115 {
+	if res.Message == 114 {
 		c = recvLock(c, res.StringMessages, "read")
-	} else if res.Message == 115 {
+	} else if res.Message == 7 {
+		fmt.Println("Got write reply")
 		c = recvLock(c, res.StringMessages, "write")
 	}
 

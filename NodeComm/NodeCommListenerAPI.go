@@ -359,6 +359,7 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationM
 func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*ClientMessage, error) {
 
 	var ans int32
+	var nodeReply string
 
 	//If this server is not the master
 	if !(n.IsMaster()) {
@@ -380,7 +381,13 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		ans = 7
 		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
 		b, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
-		fmt.Printf("%v %v\n", b, seq)
+
+		// Temp implementation for lock
+		if b {
+			nodeReply = seq
+		} else {
+			nodeReply = "NotAvail"
+		}
 
 	case ClientMessage_SubscribeFileModification:
 		ans = 8
@@ -408,7 +415,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}
 
-	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Error, Message: int32(ans)}, nil
+	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Error, Message: int32(ans), StringMessages: nodeReply}, nil
 }
 
 // Used to dispatch control messages regarding client event subscriptions.
