@@ -12,8 +12,8 @@ import (
 )
 
 type LockValues struct {
-	sequence  string
-	lockdelay int
+	Sequence  string
+	Lockdelay int
 }
 
 type Lock struct {
@@ -118,9 +118,9 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	n.lockGenerationNumber++
 	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
 
-	l.Write[client_id] = LockValues{sequence: s, lockdelay: lockdelay}
+	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
 	fmt.Println(l.Write)
-	data, err := json.Marshal(l)
+	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 
 	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber)
 
-	l.Read[client_id] = LockValues{sequence: s, lockdelay: lockdelay}
+	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
