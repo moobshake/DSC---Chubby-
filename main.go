@@ -58,7 +58,7 @@ MainLoop:
 		default:
 			fmt.Println("Invalid input.")
 		}
-		fmt.Print(">")
+		fmt.Print("> ")
 	}
 }
 

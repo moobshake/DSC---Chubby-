@@ -5,38 +5,47 @@ import (
 	"strings"
 )
 
+// List the current locks that client is holding
+func (C *Client) ListLocks() {
+	if len(C.Locks) == 0 {
+		fmt.Printf("> Client is currently holding no locks\n")
+	} else {
+		fmt.Printf("> Client is currently holding:\n")
+		for i := range C.Locks {
+			fmt.Printf("%v\n", C.Locks[i])
+		}
+	}
+}
+
 // Received Locks
-func recvLock(c Client, sequencer string, lType string) Client {
+func (C *Client) RecvLock(sequencer string, lType string) {
 	var newLock lock
 
 	if lType == "read" {
-		fmt.Printf("%d received Read Lock\n", c.ClientID)
 		newLock = lock{
 			l_type:    "read",
 			sequencer: sequencer,
 		}
 	} else if lType == "write" {
-		fmt.Printf("%d received Write Lock\n", c.ClientID)
 		newLock = lock{
 			l_type:    "write",
 			sequencer: sequencer,
 		}
 	} else {
 		fmt.Println("Lock was not available")
-		return c
+		return
 	}
 
 	fileName := strings.Split(sequencer, ":")[0]
-	c.Locks[fileName] = newLock
-	fmt.Printf("Client %d lock status: %v", c.ClientID, c.Locks)
-	return c
+	C.Locks[fileName] = newLock
+	C.ListLocks()
 }
 
 // Release Read Lock (Not implemented yet)
-func relLock(c Client, filename string) {
+func (C *Client) RelLock(filename string) {
 
 	// Release lock server
 
 	// Delete from Client
-	delete(c.Locks, filename)
+	delete(C.Locks, filename)
 }

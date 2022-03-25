@@ -382,43 +382,51 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		ans = 7
 		fmt.Printf("> Client %d requesting to %s\n", CliMsg.ClientID, CliMsg.Type)
 
-	case ClientMessage_ReadLock:
-		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
-		if isAvail {
-			nodeReply = seq
-		} else {
-			nodeReply = "NotAvail"
-		}
+	case ClientMessage_SubscribeFileModification:
+		ans = 8
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeFileModification, CliMsg.StringMessages)
+
+	case ClientMessage_SubscribeLockAquisition:
+		ans = 9
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockAquisition, CliMsg.StringMessages)
+
+	case ClientMessage_SubscribeLockConflict:
+		ans = 10
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockConflict, CliMsg.StringMessages)
+
+	case ClientMessage_SubscribeMasterFailover:
+		ans = 11
+		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
+		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeMasterFailover, "")
+
+	case ClientMessage_ListFile:
+		ans = 12
+		fmt.Printf("> Client %d requesting to list files\n", CliMsg.ClientID)
+		f := list_files(n.nodeDataPath)
+		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans), StringMessages: f}, nil
 
 	case ClientMessage_WriteLock:
+		ans = 13
 		isAvail, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
 		if isAvail {
 			nodeReply = seq
 		} else {
 			nodeReply = "NotAvail"
 		}
+		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_WriteLock, Message: int32(ans), StringMessages: nodeReply}, nil
 
-	case ClientMessage_SubscribeFileModification:
-		ans = 8
-		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
-		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeFileModification, CliMsg.StringMessages)
-	case ClientMessage_SubscribeLockAquisition:
-		ans = 9
-		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
-		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockAquisition, CliMsg.StringMessages)
-	case ClientMessage_SubscribeLockConflict:
-		ans = 10
-		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
-		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockConflict, CliMsg.StringMessages)
-	case ClientMessage_SubscribeMasterFailover:
-		ans = 11
-		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
-		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeMasterFailover, "")
-	case ClientMessage_ListFile:
-		ans = 12
-		fmt.Printf("> Client %d requesting to list files\n", CliMsg.ClientID)
-		f := list_files(n.nodeDataPath)
-		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans), StringMessages: f}, nil
+	case ClientMessage_ReadLock:
+		ans = 14
+		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		if isAvail {
+			nodeReply = seq
+		} else {
+			nodeReply = "NotAvail"
+		}
+		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_ReadLock, Message: int32(ans), StringMessages: nodeReply}, nil
 	default:
 		ans = -1
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())

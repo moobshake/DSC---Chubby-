@@ -180,15 +180,13 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
-	if res.Message == 114 {
-		c = recvLock(c, res.StringMessages, "read")
-	} else if res.Message == 7 {
-		fmt.Println("Got write reply")
-		c = recvLock(c, res.StringMessages, "write")
+	if res.Type == 114 {
+		c.RecvLock(res.StringMessages, "read")
+	} else if res.Type == 115 {
+		c.RecvLock(res.StringMessages, "write")
 	}
 
-	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
-	fmt.Printf(res.StringMessages)
+	fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
 }
 
 // Lookup Table Methods

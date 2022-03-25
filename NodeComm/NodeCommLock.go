@@ -105,8 +105,8 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 		log.Fatal(err)
 	}
 
-	// if write lock is currently held
-	if len(l.Write) != 0 {
+	// if write/read lock is currently held
+	if len(l.Write) != 0 || len(l.Read) != 0 {
 		return false, ""
 	}
 
@@ -168,6 +168,14 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// if write lock is current held, don't allow lock to be acquired
+	if len(l.Write) != 0 {
+		return false, ""
+	}
+
+	// TODO? add check if client already has write lock?
+	// then do what?
 
 	n.lockGenerationNumber++
 
