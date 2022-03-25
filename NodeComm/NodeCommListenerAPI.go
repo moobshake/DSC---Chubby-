@@ -377,13 +377,22 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		// Find master
 		ans = 5
 		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
+
 	case ClientMessage_FileWrite:
 		ans = 7
-		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
-		b, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		fmt.Printf("> Client %d requesting to %s\n", CliMsg.ClientID, CliMsg.Type)
 
-		// Temp implementation for lock
-		if b {
+	case ClientMessage_ReadLock:
+		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		if isAvail {
+			nodeReply = seq
+		} else {
+			nodeReply = "NotAvail"
+		}
+
+	case ClientMessage_WriteLock:
+		isAvail, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		if isAvail {
 			nodeReply = seq
 		} else {
 			nodeReply = "NotAvail"

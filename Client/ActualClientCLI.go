@@ -12,6 +12,7 @@ const (
 	EXIT_CLI                = "exit"
 	READ_CLI                = "read"
 	WRITE_CLI               = "write"
+	REQ_LOCK                = "requestLock"
 	SUB_FILE_MOD_CLI        = "subFileMod"
 	SUB_LOCK_AQUIS_CLI      = "subLockAquis"
 	SUB_LOCK_CONFLICT_CLI   = "subLockConflict"
@@ -46,6 +47,12 @@ Main:
 				fmt.Println("Invalid Use of Command. Requires File Name Input")
 			} else {
 				C.sendClientReadRequest(tokenised[1])
+			}
+		case REQ_LOCK:
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires File Name Input")
+			} else {
+				C.ClientRequest(REQ_LOCK, tokenised[1], tokenised[2])
 			}
 		case SUB_MASTER_FAILOVER_CLI:
 			C.ClientRequest(SUB_MASTER_FAILOVER_CLI)

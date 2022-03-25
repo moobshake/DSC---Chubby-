@@ -113,14 +113,31 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 	switch reqType {
 	case WRITE_CLI:
 
-		fmt.Printf("Args: %v\n", additionalArgs)
-
 		cm = NC.ClientMessage{
 			ClientID:       int32(c.ClientID),
 			Type:           NC.ClientMessage_FileWrite,
 			StringMessages: additionalArgs[0],
 		}
 		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
+	case REQ_LOCK:
+
+		// Expected arguments
+		// input: REQ_LOCK READ_CLI file_name
+
+		var lock_type NC.ClientMessage_MessageType
+
+		if additionalArgs[0] == READ_CLI {
+			lock_type = NC.ClientMessage_ReadLock
+		} else if additionalArgs[0] == WRITE_CLI {
+			lock_type = NC.ClientMessage_WriteLock
+		}
+
+		cm = NC.ClientMessage{
+			ClientID:       int32(c.ClientID),
+			Type:           lock_type,
+			StringMessages: additionalArgs[1],
+		}
+
 	case SUB_MASTER_FAILOVER_CLI:
 		cm = NC.ClientMessage{
 			ClientID:       int32(c.ClientID),
