@@ -378,10 +378,6 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		ans = 5
 		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
 
-	case ClientMessage_FileWrite:
-		ans = 7
-		fmt.Printf("> Client %d requesting to %s\n", CliMsg.ClientID, CliMsg.Type)
-
 	case ClientMessage_SubscribeFileModification:
 		ans = 8
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
@@ -408,6 +404,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		f := list_files(n.nodeDataPath)
 		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans), StringMessages: f}, nil
 
+	// TODO: Ask YH to change from stringmessages to the lock message
 	case ClientMessage_WriteLock:
 		ans = 13
 		isAvail, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
@@ -418,6 +415,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		}
 		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_WriteLock, Message: int32(ans), StringMessages: nodeReply}, nil
 
+	// TODO: Ask YH to change from stringmessages to the lock message
 	case ClientMessage_ReadLock:
 		ans = 14
 		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
@@ -495,9 +493,9 @@ func (n *Node) RequestReadFile(CliMsg *ClientMessage, stream NodeCommService_Req
 
 		return nil
 	} else {
-		// Return an error
+		// Return an invalid lock error
 		fileContent := FileBodyMessage{
-			Type: FileBodyMessage_Error,
+			Type: FileBodyMessage_InvalidLock,
 		}
 		if err := stream.Send(&fileContent); err != nil {
 			return err

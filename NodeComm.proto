@@ -177,6 +177,7 @@ message FileBodyMessage {
         NotInNetwork = 4;
         ReadMode = 101;
         WriteMode = 102;
+        InvalidLock = 103;
     }
 }
 

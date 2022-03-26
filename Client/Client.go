@@ -108,22 +108,15 @@ func (c *Client) FindMaster() {
 }
 
 // Making request
-// Types - Write, Subsciptions
+// Types - Subsciptions, Lock Requests
 // Read is not processed here - go to ClientRead.go
+// Write is not processed here - go to ClientWrite.go
 // 1 input for AdditionalArgs is needed for file and lock subscriptions
 func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	var cm NC.ClientMessage
 
 	switch reqType {
-	case WRITE_CLI:
-
-		cm = NC.ClientMessage{
-			ClientID:       int32(c.ClientID),
-			Type:           NC.ClientMessage_FileWrite,
-			StringMessages: additionalArgs[0],
-		}
-		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
 	case REQ_LOCK:
 
 		// Expected arguments

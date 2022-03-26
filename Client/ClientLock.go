@@ -21,14 +21,14 @@ func (C *Client) ListLocks() {
 func (C *Client) RecvLock(sequencer string, lType string) {
 	var newLock lock
 
-	if lType == "read" {
+	if lType == READ_CLI {
 		newLock = lock{
-			l_type:    "read",
+			l_type:    READ_CLI,
 			sequencer: sequencer,
 		}
-	} else if lType == "write" {
+	} else if lType == WRITE_CLI {
 		newLock = lock{
-			l_type:    "write",
+			l_type:    WRITE_CLI,
 			sequencer: sequencer,
 		}
 	} else {

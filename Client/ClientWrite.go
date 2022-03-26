@@ -21,9 +21,10 @@ const (
 // If the lock is invalid the client stops trying to send the file.
 // For demonstration purposes, this function might modify the file first before
 // sending it to the server.
-// TODO(Hannah): Send valid write lock
 func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile bool) {
-	// create stream for messaging sending
+	write_lock := c.getValidLocalWriteLock(writeFileName)
+
+	// create stream for message sending
 	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
 	if err != nil {
 		return
@@ -80,7 +81,7 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 			// The name of the file to write
 			StringMessages: writeFileName,
 			FileBody:       &fileContent,
-			Lock:           &NC.LockMessage{},
+			Lock:           write_lock,
 		}
 
 		if err := stream.Send(&cliMsg); err != nil {
@@ -120,4 +121,29 @@ func (c *Client) modifyFileForDemo(writeFileName string) {
 	if _, err := cache_file.WriteString(APPENDING_MODIFICATION); err != nil {
 		fmt.Println(err)
 	}
+}
+
+// Check if the client has the appropraite valid write lock.
+// If the client does not have the lock, request for it first.
+// Returns a valid lock, otherwise, return an empty lock.
+// TODO(Hannah): Get valid write lock
+func (c *Client) getValidLocalWriteLock(writeFileName string) *NC.LockMessage {
+	// check if the client already has any lock for this file
+	if _, ok := c.Locks[writeFileName]; !ok {
+		// Client does not currently have the lock, request for it.
+		c.ClientRequest(REQ_LOCK, WRITE_CLI, writeFileName)
+	}
+
+	// a lock was sucessfully retrived, check type
+	if write_lock, ok := c.Locks[writeFileName]; ok {
+		if write_lock.l_type == WRITE_CLI {
+			fmt.Println("Retrived write lock:", write_lock.sequencer)
+			// convert valid lock to lock message
+			return &NC.LockMessage{Sequencer: write_lock.sequencer}
+		}
+	}
+
+	// no valid lock to return
+	fmt.Println("Unable to retrieve a valid write lock")
+	return &NC.LockMessage{}
 }
