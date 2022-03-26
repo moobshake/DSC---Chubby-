@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	NC "assignment1/main/NodeComm"
 )
@@ -22,6 +21,8 @@ func (c *Client) sendClientReadRequest(readFileName string) {
 		Type:     NC.ClientMessage_FileRead,
 		// The name of the file to read
 		StringMessages: readFileName,
+		//TODO: SEND SEQEUNCER
+		Lock: &NC.LockMessage{},
 	}
 
 	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
@@ -68,14 +69,13 @@ func (c *Client) sendClientReadRequest(readFileName string) {
 // If truncateFile is true, the file is truncated to 0 first before appending the information.
 func (c *Client) writeToCache(fileContentMessage *NC.FileBodyMessage, truncateFile bool) {
 	// Create cache directory if not exists
-	cacheFilePath := filepath.Join(CACHE_ROOT, CACHE_DIR_PREFIX+"_"+strconv.Itoa(c.ClientID))
-	err := os.MkdirAll(cacheFilePath, os.ModePerm)
+	err := os.MkdirAll(c.ClientCacheFilePath, os.ModePerm)
 	if err != nil {
 		fmt.Println("writeToCache ERROR:", err)
 	}
 
 	// actual full file path
-	cacheFilePath = filepath.Join(cacheFilePath, fileContentMessage.FileName)
+	cacheFilePath := filepath.Join(c.ClientCacheFilePath, fileContentMessage.FileName)
 
 	// Open file
 	cache_file, err := os.OpenFile(cacheFilePath,

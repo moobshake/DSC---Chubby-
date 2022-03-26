@@ -506,3 +506,37 @@ func (n *Node) RequestReadFile(CliMsg *ClientMessage, stream NodeCommService_Req
 	}
 
 }
+
+// Receive a stream of write messages from the client.
+func (n *Node) RequestWriteFile(stream NodeCommService_RequestWriteFileServer) error {
+	var writeRequestMessage *ClientMessage
+
+	// This is the first message from the client that should
+	// contain a valid write lock.
+	writeRequestMessage, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	// Validate write lock
+	// TODO(Hannah): change to appropriate function
+	if n.validateWriteLock() {
+		n.writeToLocalFile(writeRequestMessage, true)
+
+		// Keep listening for more messages from the client in case
+		// the file is very big.
+		for {
+			writeRequestMessage, err = stream.Recv()
+			if err == io.EOF {
+				return stream.SendAndClose(&ClientMessage{Type: ClientMessage_Ack})
+			}
+			if err != nil {
+				return err
+			}
+
+			n.writeToLocalFile(writeRequestMessage, false)
+		}
+	} else {
+		return stream.SendAndClose(&ClientMessage{Type: ClientMessage_InvalidLock})
+	}
+}

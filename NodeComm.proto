@@ -119,6 +119,16 @@ message ParamsBody {
     string NodeLockPath = 9;
 }
 
+message LockMessage {
+    LockType Type = 1;
+    string sequencer = 2;
+    enum LockType {
+        Empty = 0;
+        ReadLock = 1;
+        WriteLock = 2;
+    }
+}
+
 message ClientMessage {
     int32 ClientID = 1;
     MessageType Type = 2;
@@ -127,6 +137,7 @@ message ClientMessage {
     FileBodyMessage FileBody = 5;
     PeerRecord ClientAddress = 6;
     string StringMessages = 7;
+    LockMessage Lock = 8;
     enum MessageType {
         Empty = 0;
         Ack = 1;
@@ -148,6 +159,7 @@ message ClientMessage {
         RedirectToCoordinator = 113;
         ReadLock = 114;
         WriteLock = 115;
+        InvalidLock = 116;
     }
 }
 
@@ -215,4 +227,7 @@ service NodeCommService {
 
     // Client asks for a file in Read-Mode
     rpc RequestReadFile(ClientMessage) returns (stream FileBodyMessage) {}
+
+    // Client asks to write to a file
+    rpc RequestWriteFile(stream ClientMessage) returns (ClientMessage) {}
 } 

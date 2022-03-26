@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	NC "assignment1/main/NodeComm"
@@ -40,6 +42,8 @@ type Client struct {
 	MasterAdd *NC.PeerRecord
 	Locks     map[string]lock // Map where key = filename, value = lock details
 	Action    int
+	// This is where the full file path to the client's cache
+	ClientCacheFilePath string
 }
 
 // Methods to implement
@@ -52,10 +56,11 @@ type Client struct {
 func CreateClient(id int, ipAdd, port string) *Client {
 
 	c := Client{
-		ClientID:  id,
-		ClientAdd: &lookup_val{IP: ipAdd, Port: port},
-		MasterAdd: &NC.PeerRecord{},
-		Locks:     map[string]lock{},
+		ClientID:            id,
+		ClientAdd:           &lookup_val{IP: ipAdd, Port: port},
+		MasterAdd:           &NC.PeerRecord{},
+		Locks:               map[string]lock{},
+		ClientCacheFilePath: filepath.Join(CACHE_ROOT, CACHE_DIR_PREFIX+"_"+strconv.Itoa(id)),
 	}
 
 	return &c
