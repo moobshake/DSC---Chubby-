@@ -28,7 +28,8 @@ MainLoop:
 		tokenised := strings.Fields(userInput)
 
 		if len(tokenised) == 0 {
-			return
+			fmt.Print(">")
+			continue
 		}
 
 		switch strings.ToLower(tokenised[0]) {

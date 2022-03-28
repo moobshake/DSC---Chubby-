@@ -254,8 +254,11 @@ func (n *Node) SendMessage(ctx context.Context, inMsg *NodeMessage) (*NodeMessag
 func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationMessage) (*CoordinationMessage, error) {
 	if !n.isOnline {
 		if coMsg.Type == CoordinationMessage_WakeUpAndJoinNetwork {
-			fmt.Println("This node has received a WAKEUP message from a coordinator.")
-			//LOOK HERE
+			if n.idOfMaster != int(coMsg.FromPRecord.Id) {
+				return &CoordinationMessage{Type: CoordinationMessage_NotMaster}, nil
+			}
+			fmt.Println("This node has received a WAKEUP message from its coordinator.")
+			n.updatePeerRecords(coMsg.FromPRecord)
 			n.onlineNode()
 		}
 		return &CoordinationMessage{Type: CoordinationMessage_Empty}, nil
