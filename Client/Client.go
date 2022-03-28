@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	NC "assignment1/main/NodeComm"
@@ -25,14 +27,23 @@ type lookup_val struct {
 	Port string
 }
 
+// Locks tracking
+type lock struct {
+	l_type    string
+	sequencer string
+}
+
 // Client struct
+// Lock is a string temporarily (Assume acquiring one lock)
 type Client struct {
 	NC.NodeCommServiceServer
 	ClientID  int
 	ClientAdd *lookup_val
 	MasterAdd *NC.PeerRecord
-	Lock      *NC.Lock
+	Locks     map[string]lock // Map where key = filename, value = lock details
 	Action    int
+	// This is where the full file path to the client's cache
+	ClientCacheFilePath string
 }
 
 // Methods to implement
@@ -45,10 +56,11 @@ type Client struct {
 func CreateClient(id int, ipAdd, port string) *Client {
 
 	c := Client{
-		ClientID:  id,
-		ClientAdd: &lookup_val{IP: ipAdd, Port: port},
-		MasterAdd: &NC.PeerRecord{},
-		Lock:      &NC.Lock{},
+		ClientID:            id,
+		ClientAdd:           &lookup_val{IP: ipAdd, Port: port},
+		MasterAdd:           &NC.PeerRecord{},
+		Locks:               map[string]lock{},
+		ClientCacheFilePath: filepath.Join(CACHE_ROOT, CACHE_DIR_PREFIX+"_"+strconv.Itoa(id)),
 	}
 
 	return &c
@@ -96,20 +108,34 @@ func (c *Client) FindMaster() {
 }
 
 // Making request
-// Types - Write, Subsciptions
+// Types - Subsciptions, Lock Requests
 // Read is not processed here - go to ClientRead.go
+// Write is not processed here - go to ClientWrite.go
 // 1 input for AdditionalArgs is needed for file and lock subscriptions
 func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	var cm NC.ClientMessage
 
 	switch reqType {
-	case WRITE_CLI:
-		cm = NC.ClientMessage{
-			ClientID: int32(c.ClientID),
-			Type:     NC.ClientMessage_FileWrite,
+	case REQ_LOCK:
+
+		// Expected arguments
+		// input: REQ_LOCK READ_CLI file_name
+
+		var lock_type NC.ClientMessage_MessageType
+
+		if additionalArgs[0] == READ_CLI {
+			lock_type = NC.ClientMessage_ReadLock
+		} else if additionalArgs[0] == WRITE_CLI {
+			lock_type = NC.ClientMessage_WriteLock
 		}
-		fmt.Printf("Client %d creating Write Request\n", c.ClientID)
+
+		cm = NC.ClientMessage{
+			ClientID:       int32(c.ClientID),
+			Type:           lock_type,
+			StringMessages: additionalArgs[1],
+		}
+
 	case SUB_MASTER_FAILOVER_CLI:
 		cm = NC.ClientMessage{
 			ClientID:       int32(c.ClientID),
@@ -152,8 +178,13 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
-	fmt.Printf("Master replied: %d, Message: %d\n", res.Type, res.Message)
-	fmt.Printf(res.StringMessages)
+	if res.Type == 114 {
+		c.RecvLock(res.StringMessages, "read")
+	} else if res.Type == 115 {
+		c.RecvLock(res.StringMessages, "write")
+	}
+
+	fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
 }
 
 // Lookup Table Methods

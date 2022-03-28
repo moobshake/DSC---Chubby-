@@ -12,11 +12,15 @@ const (
 	EXIT_CLI                = "exit"
 	READ_CLI                = "read"
 	WRITE_CLI               = "write"
+	REQ_LOCK                = "requestLock"
 	SUB_FILE_MOD_CLI        = "subFileMod"
 	SUB_LOCK_AQUIS_CLI      = "subLockAquis"
 	SUB_LOCK_CONFLICT_CLI   = "subLockConflict"
 	SUB_MASTER_FAILOVER_CLI = "subMasterFailover"
 	LIST_FILE_CLI           = "ls"
+	LIST_LOCKS_CLI          = "ll"
+	TRUE_CLI                = "true"
+	FALSE_CLI               = "false"
 )
 
 //Implement a CLI here that is built on top of the ActualClientAPI.go
@@ -39,13 +43,31 @@ Main:
 		case EXIT_CLI:
 			break Main
 		case WRITE_CLI:
-			C.ClientRequest(WRITE_CLI)
+			// Expect the file name to follow the read request token
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires File Name Input")
+			} else {
+				// by default modify the file
+				modify_file := true
+
+				if len(tokenised) >= 3 {
+					modify_file = tokenised[2] == TRUE_CLI
+				}
+
+				C.sendClientWriteRequest(tokenised[1], modify_file)
+			}
 		case READ_CLI:
 			// Expect the file name to follow the read request token
 			if len(tokenised) < 2 {
 				fmt.Println("Invalid Use of Command. Requires File Name Input")
 			} else {
 				C.sendClientReadRequest(tokenised[1])
+			}
+		case REQ_LOCK:
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires File Name Input")
+			} else {
+				C.ClientRequest(REQ_LOCK, tokenised[1], tokenised[2])
 			}
 		case SUB_MASTER_FAILOVER_CLI:
 			C.ClientRequest(SUB_MASTER_FAILOVER_CLI)
@@ -69,6 +91,8 @@ Main:
 			}
 		case LIST_FILE_CLI:
 			C.ClientRequest(LIST_FILE_CLI)
+		case LIST_LOCKS_CLI:
+			C.ListLocks()
 		case "help":
 			printHelp(tokenised)
 		default:
@@ -81,14 +105,14 @@ Main:
 
 func printHelp(params []string) {
 	if len(params) == 1 {
-		fmt.Printf("'%s':\t Exit program.", EXIT_CLI)
-		fmt.Printf("'%s':\t Client sends Write Request to Master.\n", WRITE_CLI)
-		fmt.Printf("'%s':\t Client sends Read Request to Master.\n", READ_CLI)
+		fmt.Printf("'%s':\t Exit program.\n", EXIT_CLI)
+		fmt.Printf("'%s FILE_NAME [modify file? %s/%s]':\t Client sends Write Request to Master.\n", WRITE_CLI, TRUE_CLI, FALSE_CLI)
+		fmt.Printf("'%s FILE_NAME':\t Client sends Read Request to Master.\n", READ_CLI)
 
 		// Event Subsciptions
 		fmt.Printf("'%s':\t Client sends Master Failover Subscription Request to Master.\n", SUB_MASTER_FAILOVER_CLI)
-		fmt.Printf("'%s':\t Client sends File Modification Subscription Request to Master.\n", SUB_FILE_MOD_CLI)
-		fmt.Printf("'%s':\t Client sends Lock Aquisition Subscription Request to Master.\n", SUB_LOCK_AQUIS_CLI)
-		fmt.Printf("'%s':\t Client sends Lock Conflict Subscription Request to Master.\n", SUB_LOCK_CONFLICT_CLI)
+		fmt.Printf("'%s FILE_NAME':\t Client sends File Modification Subscription Request to Master.\n", SUB_FILE_MOD_CLI)
+		fmt.Printf("'%s LOCK_NAME':\t Client sends Lock Aquisition Subscription Request to Master.\n", SUB_LOCK_AQUIS_CLI)
+		fmt.Printf("'%s LOCK_NAME':\t Client sends Lock Conflict Subscription Request to Master.\n", SUB_LOCK_CONFLICT_CLI)
 	}
 }

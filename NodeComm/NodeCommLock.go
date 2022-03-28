@@ -2,6 +2,7 @@ package nodecomm
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,14 +11,14 @@ import (
 	cp "github.com/otiai10/copy"
 )
 
-const LOCK_PATH = "./lock"
-const DATA_PATH = "./data"
+type LockValues struct {
+	Sequence  string
+	Lockdelay int
+}
 
 type Lock struct {
-	Write     int    // only 1 client can hold
-	Read      []int  // multiple client can hold
-	LockDelay int64  // timestamp for timeout
-	Sequence  string // opaque byte-string
+	Write map[int]LockValues // only 1 client can hold
+	Read  map[int]LockValues // multiple client can hold
 }
 
 // create lock directory
@@ -39,7 +40,7 @@ func InitDirectory(path string, data bool) {
 
 // base on the file names, create a lock JSON with content
 func initLockContent(file os.File) {
-	l := Lock{Write: -1, Read: []int{-1}, LockDelay: 0, Sequence: ""}
+	l := Lock{Write: make(map[int]LockValues), Read: make(map[int]LockValues)}
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
 		log.Fatal(err)
@@ -92,73 +93,128 @@ func sequencerGenerator(filename string, mode string, lock_gen_num int) string {
 }
 
 // acquire write lock
-func (n *Node) AcquireWriteLock(filename string, lockPath string, lockdelay int, client_id int, sequencer bool) {
-	file, err := ioutil.ReadFile(lockPath + "/" + filename)
+func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (bool, string) {
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	l := Lock{}
-
 	err = json.Unmarshal([]byte(file), &l)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if l.Write == -1 {
-		l.Write = client_id
-		if lockdelay < 10 { // 10 second upper bound
-			l.LockDelay = int64(lockdelay)
-		}
-	} else {
-		return // held by some other client
+	// if write/read lock is currently held
+	if len(l.Write) != 0 || len(l.Read) != 0 {
+		return false, ""
 	}
 
-	if sequencer {
-		// add 1 to lock gen number
-		n.lockGenerationNumber++
-		// generate sequence and return
-		l.Sequence = sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
+	// max lock delay of 10 seconds
+	if lockdelay > 10 || lockdelay < 0 { // 10 second upper bound
+		return false, ""
 	}
 
+	n.lockGenerationNumber++
+	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
+
+	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
+	fmt.Println(l.Write)
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(lockPath+"/"+filename, data, 0644)
+	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	return true, s
 }
 
 // release the write lock
-func (n *Node) ReleaseWriteLock(filename string, lockPath string, client_id int) {
-	file, err := ioutil.ReadFile(lockPath + "/" + filename)
+func (n *Node) ReleaseWriteLock(filename string, client_id int) {
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	l := Lock{}
-
 	err = json.Unmarshal([]byte(file), &l)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if l.Write == client_id {
-		l.Write = -1
-		l.LockDelay = -1
-		l.Sequence = ""
-	}
+	delete(l.Write, client_id)
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(lockPath+"/"+filename, data, 0644)
+	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// acquire read lock
+func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (bool, string) {
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	l := Lock{}
+	err = json.Unmarshal([]byte(file), &l)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// if write lock is current held, don't allow lock to be acquired
+	if len(l.Write) != 0 {
+		return false, ""
+	}
+
+	// TODO? add check if client already has write lock?
+	// then do what?
+
+	n.lockGenerationNumber++
+
+	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber)
+
+	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
+
+	data, err := json.MarshalIndent(l, "", " ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return true, s
+}
+
+// release read lock
+func (n *Node) ReleaseReadLock(filename string, client_id int) {
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	l := Lock{}
+	err = json.Unmarshal([]byte(file), &l)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	delete(l.Read, client_id)
+
+	data, err := json.MarshalIndent(l, "", " ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

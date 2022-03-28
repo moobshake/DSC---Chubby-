@@ -362,6 +362,7 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *CoordinationM
 func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*ClientMessage, error) {
 
 	var ans int32
+	var nodeReply string
 
 	//If this server is not the master
 	if !(n.IsMaster()) {
@@ -379,36 +380,60 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *ClientMessage) (*C
 		// Find master
 		ans = 5
 		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
-	case ClientMessage_FileWrite:
-		ans = 7
-		fmt.Printf("> Client %d requesting to write\n", CliMsg.ClientID)
+
 	case ClientMessage_SubscribeFileModification:
 		ans = 8
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
 		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeFileModification, CliMsg.StringMessages)
+
 	case ClientMessage_SubscribeLockAquisition:
 		ans = 9
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
 		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockAquisition, CliMsg.StringMessages)
+
 	case ClientMessage_SubscribeLockConflict:
 		ans = 10
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
 		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeLockConflict, CliMsg.StringMessages)
+
 	case ClientMessage_SubscribeMasterFailover:
 		ans = 11
 		fmt.Printf("> Client %d requesting to subscibe: %s\n", CliMsg.ClientID, CliMsg.Type.String())
 		n.dispatchSubscriptionMessage(CliMsg, ControlMessage_SubscribeMasterFailover, "")
+
 	case ClientMessage_ListFile:
 		ans = 12
 		fmt.Printf("> Client %d requesting to list files\n", CliMsg.ClientID)
 		f := list_files(n.nodeDataPath)
 		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Ack, Message: int32(ans), StringMessages: f}, nil
+
+	// TODO: Ask YH to change from stringmessages to the lock message
+	case ClientMessage_WriteLock:
+		ans = 13
+		isAvail, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		if isAvail {
+			nodeReply = seq
+		} else {
+			nodeReply = "NotAvail"
+		}
+		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_WriteLock, Message: int32(ans), StringMessages: nodeReply}, nil
+
+	// TODO: Ask YH to change from stringmessages to the lock message
+	case ClientMessage_ReadLock:
+		ans = 14
+		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		if isAvail {
+			nodeReply = seq
+		} else {
+			nodeReply = "NotAvail"
+		}
+		return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_ReadLock, Message: int32(ans), StringMessages: nodeReply}, nil
 	default:
 		ans = -1
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}
 
-	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Error, Message: int32(ans)}, nil
+	return &ClientMessage{ClientID: CliMsg.ClientID, Type: ClientMessage_Error, Message: int32(ans), StringMessages: nodeReply}, nil
 }
 
 // Used to dispatch control messages regarding client event subscriptions.
@@ -471,9 +496,9 @@ func (n *Node) RequestReadFile(CliMsg *ClientMessage, stream NodeCommService_Req
 
 		return nil
 	} else {
-		// Return an error
+		// Return an invalid lock error
 		fileContent := FileBodyMessage{
-			Type: FileBodyMessage_Error,
+			Type: FileBodyMessage_InvalidLock,
 		}
 		if err := stream.Send(&fileContent); err != nil {
 			return err
@@ -481,4 +506,38 @@ func (n *Node) RequestReadFile(CliMsg *ClientMessage, stream NodeCommService_Req
 		return nil
 	}
 
+}
+
+// Receive a stream of write messages from the client.
+func (n *Node) RequestWriteFile(stream NodeCommService_RequestWriteFileServer) error {
+	var writeRequestMessage *ClientMessage
+
+	// This is the first message from the client that should
+	// contain a valid write lock.
+	writeRequestMessage, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	// Validate write lock
+	// TODO(Hannah): change to appropriate function
+	if n.validateWriteLock() {
+		n.writeToLocalFile(writeRequestMessage, true)
+
+		// Keep listening for more messages from the client in case
+		// the file is very big.
+		for {
+			writeRequestMessage, err = stream.Recv()
+			if err == io.EOF {
+				return stream.SendAndClose(&ClientMessage{Type: ClientMessage_Ack})
+			}
+			if err != nil {
+				return err
+			}
+
+			n.writeToLocalFile(writeRequestMessage, false)
+		}
+	} else {
+		return stream.SendAndClose(&ClientMessage{Type: ClientMessage_InvalidLock})
+	}
 }
