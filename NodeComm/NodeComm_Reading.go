@@ -3,13 +3,15 @@ package nodecomm
 import (
 	"os"
 	"path/filepath"
+
+	pc "assignment1/main/protocchubby"
 )
 
 const (
 	READ_MAX_BYTE_SIZE = 1024
 )
 
-func (n *Node) validateReadRequest(CliMsg *ClientMessage) bool {
+func (n *Node) validateReadRequest(CliMsg *pc.ClientMessage) bool {
 	return n.validateReadLock() && n.validateFileExists(CliMsg)
 }
 
@@ -19,7 +21,7 @@ func (n *Node) validateReadLock() bool {
 }
 
 // If the file exists, store it in local memory
-func (n *Node) validateFileExists(CliMsg *ClientMessage) bool {
+func (n *Node) validateFileExists(CliMsg *pc.ClientMessage) bool {
 	//local file storage path
 	localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
 

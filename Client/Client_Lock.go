@@ -5,7 +5,13 @@ import (
 	"strings"
 )
 
-// List the current locks that client is holding
+// Locks tracking
+type lock struct {
+	lockType  string
+	sequencer string
+}
+
+// ListLocks lists the current locks that client is holding
 func (C *Client) ListLocks() {
 	if len(C.Locks) == 0 {
 		fmt.Printf("> Client is currently holding no locks\n")
@@ -17,18 +23,18 @@ func (C *Client) ListLocks() {
 	}
 }
 
-// Received Locks
+// RecvLock receives Locks
 func (C *Client) RecvLock(sequencer string, lType string) {
 	var newLock lock
 
 	if lType == READ_CLI {
 		newLock = lock{
-			l_type:    READ_CLI,
+			lockType:  READ_CLI,
 			sequencer: sequencer,
 		}
 	} else if lType == WRITE_CLI {
 		newLock = lock{
-			l_type:    WRITE_CLI,
+			lockType:  WRITE_CLI,
 			sequencer: sequencer,
 		}
 	} else {
@@ -41,7 +47,7 @@ func (C *Client) RecvLock(sequencer string, lType string) {
 	C.ListLocks()
 }
 
-// Release Read Lock (Not implemented yet)
+// RelLock release Read Lock (Not implemented yet)
 func (C *Client) RelLock(filename string) {
 
 	// Release lock server

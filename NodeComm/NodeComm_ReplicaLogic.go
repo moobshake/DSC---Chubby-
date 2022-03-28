@@ -3,6 +3,8 @@ package nodecomm
 import (
 	"fmt"
 	"time"
+
+	pc "assignment1/main/protocchubby"
 )
 
 //Methods here MUST ONLY BE CALLED BY THE LISTENER SERVER
@@ -28,12 +30,12 @@ func (n *Node) onlineNode() {
 //tryJoinNetwork has the node contact a configured coordinator to join a network or it has the
 //node create a network if it is configured as a coordinator.
 func (n *Node) tryJoinNetwork() bool {
-	nCoMsg := CoordinationMessage{Type: CoordinationMessage_ReqToJoin}
+	nCoMsg := pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToJoin}
 	response := n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &nCoMsg)
 	if response == nil {
 		return false
 	}
-	for response.Type == CoordinationMessage_RedirectToCoordinator {
+	for response.Type == pc.CoordinationMessage_RedirectToCoordinator {
 		fmt.Println("Attempt to join was rejected because specified node is not the master.")
 		fmt.Println("Received redirection, attempting to join network of node:", int(response.PeerRecords[0].Id))
 		n.mergePeerRecords(response.PeerRecords)
@@ -42,10 +44,10 @@ func (n *Node) tryJoinNetwork() bool {
 			return false
 		}
 	}
-	if response.Type == CoordinationMessage_RejectJoin {
+	if response.Type == pc.CoordinationMessage_RejectJoin {
 		fmt.Println("Attempt to join was rejected: ", response.Comment)
 		return false
-	} else if response.Type == CoordinationMessage_PeerInformation {
+	} else if response.Type == pc.CoordinationMessage_PeerInformation {
 		numNodes := len(response.PeerRecords)
 		fmt.Println("Successfully joined network of node", response.FromPRecord.Id, ". There are ", numNodes-1, " other nodes in the network.")
 		n.mergePeerRecords(response.PeerRecords)
@@ -65,10 +67,10 @@ func (n *Node) offlineNode() {
 				nextHighestID = int(n.peerRecords[i].Id)
 			}
 		}
-		n.BroadcastCoordinationMessage(&CoordinationMessage{Type: CoordinationMessage_ApptNewCoordinator, Spare: int32(nextHighestID)})
+		n.BroadcastCoordinationMessage(&pc.CoordinationMessage{Type: pc.CoordinationMessage_ApptNewCoordinator, Spare: int32(nextHighestID)})
 		return
 	}
-	n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &CoordinationMessage{Type: CoordinationMessage_ReqToLeave})
+	n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToLeave})
 	n.isOnline = false
 	fmt.Println("Node is offline.")
 }
@@ -90,15 +92,15 @@ func (n *Node) isPeer(senderID int32) bool {
 }
 
 //getPeerRecord returns the PeerRecord of the given node ID.
-func (n *Node) getPeerRecord(ID int, noWarning bool) *PeerRecord {
+func (n *Node) getPeerRecord(ID int, noWarning bool) *pc.PeerRecord {
 	if ID == int(n.myPRecord.Id) {
 		return n.myPRecord
 	}
-	var ansRec *PeerRecord
+	var ansRec *pc.PeerRecord
 	n.peerRecordsLock.Lock()
 	for _, pRec := range n.peerRecords {
 		if pRec.Id == int32(ID) {
-			ansRec = &PeerRecord{Id: pRec.Id, Address: pRec.Address, Port: pRec.Port}
+			ansRec = &pc.PeerRecord{Id: pRec.Id, Address: pRec.Address, Port: pRec.Port}
 			break
 		}
 	}
@@ -122,7 +124,7 @@ func (n *Node) deletePeerRecord(ID int) {
 }
 
 //updatePeerRecords updates the PeerRecords of the node with the given PeerRecord
-func (n *Node) updatePeerRecords(pUpdateRec *PeerRecord) {
+func (n *Node) updatePeerRecords(pUpdateRec *pc.PeerRecord) {
 	n.peerRecordsLock.Lock()
 	for i, pRec := range n.peerRecords {
 		if pRec.Id == pUpdateRec.Id {
@@ -136,7 +138,7 @@ func (n *Node) updatePeerRecords(pUpdateRec *PeerRecord) {
 }
 
 //mergePeerRecords updates the PeerRecords of the node with the given PeerRecords
-func (n *Node) mergePeerRecords(peerRecords []*PeerRecord) {
+func (n *Node) mergePeerRecords(peerRecords []*pc.PeerRecord) {
 	for _, nPRec := range peerRecords {
 		if nPRec.Id == n.myPRecord.Id {
 			continue
@@ -146,7 +148,7 @@ func (n *Node) mergePeerRecords(peerRecords []*PeerRecord) {
 }
 
 //overrridePeerRecords completely overrides this node's PeerRecords with the given PeerRecords
-func (n *Node) overridePeerRecords(peerRecords []*PeerRecord) {
+func (n *Node) overridePeerRecords(peerRecords []*pc.PeerRecord) {
 	n.peerRecords = peerRecords
 	for i, nPRec := range peerRecords {
 		if nPRec.Id == n.myPRecord.Id {
@@ -157,7 +159,7 @@ func (n *Node) overridePeerRecords(peerRecords []*PeerRecord) {
 }
 
 //badNodeHandler checks the node of the given pRec and handles it if it is offline
-func (n *Node) badNodeHandler(pRec *PeerRecord) bool {
+func (n *Node) badNodeHandler(pRec *pc.PeerRecord) bool {
 	//This check is especially important because if a coordinator receives a badnodereport and an election starts
 	//simultaneously, it might remove the peerrecord of the badnode and attempt to send an election message
 	//to the same node. Racecondition problems. This might cause an nil error if this check isn't here.
@@ -166,7 +168,7 @@ func (n *Node) badNodeHandler(pRec *PeerRecord) bool {
 	}
 	fmt.Println("Potentially offline node detected: ", pRec)
 	fmt.Println("Sending KeepAlive message...")
-	response := n.DispatchKeepAlve(pRec)
+	response := n.DispatchKeepAlive(pRec)
 	if response {
 		fmt.Println(pRec, "responded to keepalive signal.")
 		return true
@@ -179,17 +181,17 @@ func (n *Node) badNodeHandler(pRec *PeerRecord) bool {
 		n.deletePeerRecord(int(pRec.Id))
 		n.BroadcastPeerInformation()
 	} else { //This node is not the master and the downed node is not a master. Inform the master.
-		n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &CoordinationMessage{Type: CoordinationMessage_BadNodeReport, Spare: pRec.Id})
+		n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_BadNodeReport, Spare: pRec.Id})
 	}
 	return false
 }
 
 //electionHandler handles all election messages
-func (n *Node) electionHandler(electMsg *CoordinationMessage) {
+func (n *Node) electionHandler(electMsg *pc.CoordinationMessage) {
 	n.electionStatusLock.Lock()
 	n.electionStatus.Active = 2
 	switch electMsg.Type {
-	case CoordinationMessage_ElectSelf:
+	case pc.CoordinationMessage_ElectSelf:
 		//If no ongoing election and node lost before it even began
 		if n.electionStatus.OngoingElection == 1 && electMsg.FromPRecord.Id > n.myPRecord.Id {
 			n.electionStatus.OngoingElection = 2
@@ -202,19 +204,19 @@ func (n *Node) electionHandler(electMsg *CoordinationMessage) {
 			n.electionStatus.IsWinning = 2
 			go n.electionTimer()
 			if electMsg.FromPRecord.Id < n.myPRecord.Id { //Send reject to lower ID nodes
-				n.DispatchCoordinationMessage(electMsg.FromPRecord, &CoordinationMessage{Type: CoordinationMessage_RejectElect})
+				n.DispatchCoordinationMessage(electMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_RejectElect})
 			}
 			n.electionStatusLock.Unlock()
 			return
 		}
 		if electMsg.FromPRecord.Id < n.myPRecord.Id { //Send reject to lower ID nodes
-			n.DispatchCoordinationMessage(electMsg.FromPRecord, &CoordinationMessage{Type: CoordinationMessage_RejectElect})
+			n.DispatchCoordinationMessage(electMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_RejectElect})
 		}
-	case CoordinationMessage_RejectElect:
+	case pc.CoordinationMessage_RejectElect:
 		if electMsg.FromPRecord.Id > n.myPRecord.Id {
 			n.electionStatus.IsWinning = 1
 		}
-	case CoordinationMessage_ElectionResult:
+	case pc.CoordinationMessage_ElectionResult:
 		n.idOfMaster = int(electMsg.FromPRecord.Id)
 		n.overridePeerRecords(electMsg.PeerRecords)
 		n.electionStatus.OngoingElection = 1
@@ -229,7 +231,7 @@ func (n *Node) electionHandler(electMsg *CoordinationMessage) {
 func (n *Node) electionTimer() {
 	for _, pRec := range n.peerRecords {
 		if pRec.Id > n.myPRecord.Id {
-			n.DispatchCoordinationMessage(pRec, &CoordinationMessage{Type: CoordinationMessage_ElectSelf})
+			n.DispatchCoordinationMessage(pRec, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ElectSelf})
 		}
 	}
 	//Wait for election to finish
@@ -266,7 +268,7 @@ func (n *Node) electionTimer() {
 
 //spoofElection spoofs a fake ElectSelf to this node to prompt it start an election
 func (n *Node) spoofElection() {
-	fakeCoMsg := CoordinationMessage{Type: CoordinationMessage_ElectSelf, FromPRecord: n.myPRecord}
+	fakeCoMsg := pc.CoordinationMessage{Type: pc.CoordinationMessage_ElectSelf, FromPRecord: n.myPRecord}
 	n.electionHandler(&fakeCoMsg)
 }
 

@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	pc "assignment1/main/protocchubby"
 )
 
 //startCLI starts the CLI (mainloop)
@@ -23,7 +25,7 @@ Main:
 		}
 		switch tokenised[0] {
 		case "exit":
-			n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_StopListening})
+			n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_StopListening})
 			break Main
 		case "online":
 			n.online()
@@ -43,33 +45,8 @@ Main:
 			n.getStatus()
 		case "startElection":
 			n.startElection()
-		case "publishFileMod":
-			// Testing Events
-			// Second arg should be the file name
-			if len(tokenised) < 2 {
-				fmt.Println("Invalid Use of Command. Requires File Name Input")
-			} else {
-				n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishFileModification, Comment: tokenised[1]})
-			}
-		case "publishLockAquis":
-			// Testing Events
-			// Second arg should be the lock name
-			if len(tokenised) < 2 {
-				fmt.Println("Invalid Use of Command. Requires Lock Name Input")
-			} else {
-				n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishLockAquisition, Comment: tokenised[1]})
-			}
-		case "publishLockConflict":
-			// Testing Events
-			// Second arg should be the lock name
-			if len(tokenised) < 2 {
-				fmt.Println("Invalid Use of Command. Requires Lock Name Input")
-			} else {
-				n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishLockConflict, Comment: tokenised[1]})
-			}
-		case "publishMasterFailover":
-			// Testing Events
-			n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_PublishMasterFailover})
+		case "publish":
+			n.publish(tokenised[1:])
 		case "help":
 			printHelp(tokenised)
 		default:
@@ -91,10 +68,7 @@ func printHelp(params []string) {
 		fmt.Println("'msg':\t\t Send a plain text message to a peer node.")
 		fmt.Println("'getStatus':\t Obtain information about the node.")
 		fmt.Println("'startElection':\t Used to manually trigger an election.")
-		fmt.Println("'publishFileMod [file]':\t Used to manually publish a file modification.")
-		fmt.Println("'publishLockAquis [lock]':\t Used to manually publish a lock aquisition.")
-		fmt.Println("'publishLockConflict [lock]':\t Used to manually publish a lock conflict.")
-		fmt.Println("'publishMasterFailover':\t Used to manually publish a master failover.")
+		fmt.Println("'publish':\t\tUsed to manually publish an update to subscribed clients.")
 		fmt.Println("'help':\t Prints this menu.")
 		return
 	}
@@ -127,19 +101,27 @@ func printHelp(params []string) {
 		fmt.Println("Instructs the node to join or create a network.")
 	case "offline":
 		fmt.Println("Instructs the node to leave its network.")
+	case "publish":
+		fmt.Println("Manually publishes a subscription update.")
+		fmt.Println("\tSyntax: publish <subscription_update_type> <args>")
+		fmt.Println("\tSubscription Update Types:")
+		fmt.Println("\t\t'FileMod [file]':\t Used to manually publish a file modification.")
+		fmt.Println("\t\t'LockAcquire [lock]':\t Used to manually publish a lock aquisition.")
+		fmt.Println("\t\t'LockConflict [lock]':\t Used to manually publish a lock conflict.")
+		fmt.Println("\t\t'MasterFailover':\t Used to manually publish a master failover.")
 	}
 }
 
 func (n *Node) online() {
-	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_JoinNetwork})
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_JoinNetwork})
 }
 
 func (n *Node) offline() {
-	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_LeaveNetwork})
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_LeaveNetwork})
 }
 
 func (n *Node) addPeer(params []string) {
-	var nPRecs []*PeerRecord
+	var nPRecs []*pc.PeerRecord
 	for i, param := range params {
 		if i == 0 {
 			continue
@@ -151,37 +133,37 @@ func (n *Node) addPeer(params []string) {
 		peerID, _ := strconv.Atoi(tokenised[0])
 		peerAddr := tokenised[1]
 		peerPort := tokenised[2]
-		nPRec := PeerRecord{
+		nPRec := pc.PeerRecord{
 			Id:      int32(peerID),
 			Address: peerAddr,
 			Port:    peerPort,
 		}
 		nPRecs = append(nPRecs, &nPRec)
 	}
-	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_AddPeer, ParamsBody: &ParamsBody{PeerRecords: nPRecs}})
-	if response.Type == ControlMessage_Okay {
+	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_AddPeer, ParamsBody: &pc.ParamsBody{PeerRecords: nPRecs}})
+	if response.Type == pc.ControlMessage_Okay {
 		fmt.Println("Done")
 	}
 }
 
 func (n *Node) delPeer(params []string) {
-	var nPRecs []*PeerRecord
+	var nPRecs []*pc.PeerRecord
 	for i, param := range params {
 		if i == 0 {
 			continue
 		}
 		peerID, _ := strconv.Atoi(param)
-		nPRec := PeerRecord{Id: int32(peerID)}
+		nPRec := pc.PeerRecord{Id: int32(peerID)}
 		nPRecs = append(nPRecs, &nPRec)
 	}
-	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_DelPeer, ParamsBody: &ParamsBody{PeerRecords: nPRecs}})
-	if response.Type == ControlMessage_Okay {
+	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_DelPeer, ParamsBody: &pc.ParamsBody{PeerRecords: nPRecs}})
+	if response.Type == pc.ControlMessage_Okay {
 		fmt.Println("Done")
 	}
 }
 
 func (n *Node) getPeers() {
-	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_GetParams})
+	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_GetParams})
 	fmt.Println(response.ParamsBody.PeerRecords)
 }
 
@@ -195,16 +177,16 @@ func (n *Node) msg(params []string) {
 	for _, word := range params[2:] {
 		nMsg = nMsg + word + " "
 	}
-	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_Message, Spare: int32(id), Comment: nMsg})
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_Message, Spare: int32(id), Comment: nMsg})
 }
 
 func (n *Node) getStatus() {
-	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_GetStatus})
+	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_GetStatus})
 	fmt.Println("id: " + strconv.Itoa(int(response.ParamsBody.MyPRecord.Id)) + "\tidOfMaster: " + strconv.Itoa(int(response.ParamsBody.IdOfMaster)))
 }
 
 func (n *Node) configParams(params []string) {
-	response := n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_GetParams})
+	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_GetParams})
 	pBody := response.ParamsBody
 	for i, param := range params {
 		if i == 0 {
@@ -232,9 +214,45 @@ func (n *Node) configParams(params []string) {
 		}
 
 	}
-	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_UpdateParams, ParamsBody: pBody})
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_UpdateParams, ParamsBody: pBody})
 }
 
 func (n *Node) startElection() {
-	n.DispatchControlMessage(&ControlMessage{Type: ControlMessage_StartElection})
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_StartElection})
+}
+
+func (n *Node) publish(args []string) {
+	if len(args) < 1 {
+		fmt.Println("No arguments provided.")
+		return
+	}
+	switch args[0] {
+	case "FileMod":
+		// Testing Events
+		// Second arg should be the file name
+		if len(args) < 2 {
+			fmt.Println("Invalid Use of Command. Requires File Name Input")
+		} else {
+			n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_PublishFileModification, Comment: args[1]})
+		}
+	case "LockAcquire":
+		// Testing Events
+		// Second arg should be the lock name
+		if len(args) < 2 {
+			fmt.Println("Invalid Use of Command. Requires Lock Name Input")
+		} else {
+			n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_PublishLockAquisition, Comment: args[1]})
+		}
+	case "LockConflict":
+		// Testing Events
+		// Second arg should be the lock name
+		if len(args) < 2 {
+			fmt.Println("Invalid Use of Command. Requires Lock Name Input")
+		} else {
+			n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_PublishLockConflict, Comment: args[1]})
+		}
+	case "MasterFailover":
+		// Testing Events
+		n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_PublishMasterFailover})
+	}
 }

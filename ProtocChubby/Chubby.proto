@@ -1,7 +1,9 @@
 syntax = "proto3";
-package NodeComm;
+package main;
 // protoc --go_out=./NodeComm --go_opt=paths=source_relative  --go-grpc_out=./NodeComm --go-grpc_opt=paths=source_relative  NodeComm.proto
-option go_package = "/nodecomm;nodecomm";
+// protoc --go_out=./ --go_opt=paths=source_relative  --go-grpc_out=./ --go-grpc_opt=paths=source_relative  ./ProtocChubby/Chubby.proto
+
+option go_package = "/protocchubby;protocchubby";
 
 //Enums between 0 and 99 are common across message types
 //Enums after 100 are unique to a message
@@ -97,10 +99,6 @@ message ControlMessage {
         StartElection = 113;
         GetParams = 114;
         //Events
-        SubscribeFileModification = 115;
-        SubscribeLockAquisition = 116;
-        SubscribeLockConflict = 117;
-        SubscribeMasterFailover = 118;
         PublishFileModification = 119;
         PublishLockAquisition = 120;
         PublishLockConflict = 121;
@@ -209,26 +207,36 @@ message EventMessage {
     }
 }
 
+//<><><> Server Services <><><>
+//ControlService allows replicas to receive control messages from the UI
+service NodeCommControlService {
+    rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
+    rpc Shutdown(ControlMessage) returns (ControlMessage){}
+}
 
-
-service NodeCommService {
+//PeerService allows replicas to communicate with one another
+service NodeCommPeerService {
     rpc KeepAlive(NodeMessage) returns (NodeMessage){}
     rpc SendMessage(NodeMessage) returns (NodeMessage) {}
-
     rpc SendCoordinationMessage(CoordinationMessage) returns (CoordinationMessage) {}
-
-    rpc Shutdown(ControlMessage) returns (ControlMessage){}
-    rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
-
-    rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
-    rpc SendServerMessage(ServerMessage) returns (ClientMessage){}
-
-    // Events are published from Server to Client
-    rpc SendEventMessage(EventMessage) returns (EventMessage){}
-
-    // Client asks for a file in Read-Mode
-    rpc RequestReadFile(ClientMessage) returns (stream FileBodyMessage) {}
-
-    // Client asks to write to a file
-    rpc RequestWriteFile(stream ClientMessage) returns (ClientMessage) {}
 } 
+
+//ListeningService allows replicas to receive messages from clients
+service NodeCommListeningService {
+    rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
+    rpc SendReadRequest(ClientMessage) returns (stream FileBodyMessage) {}
+    rpc SendWriteRequest(stream ClientMessage) returns (ClientMessage) {}
+}
+
+// <><><> Client Services <><><>
+//ControlService allows the client to receive commands from a UI
+service ClientControlService {
+    rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
+    rpc Shutdown(ControlMessage) returns (ControlMessage){}
+}
+
+//ListeningService allows the client to receive messages from replicas
+service ClientListeningService {
+    rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
+    rpc SendEventMessage(EventMessage) returns (EventMessage){}
+}

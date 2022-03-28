@@ -1,20 +1,10 @@
-NodeComm.go:
-    Contains the Node struct
-    Contains implmentations of the RPC methods
+<><><><><><><><><><> NodeComm Stack <><><><><><><><><><>
 
-NodeCommClient.go:
-    Contains the implementations of the client-side methods that corresopnd to the RPC methods.
-    Eg: If NodeComm.go contains a SayHello(), NodeCommClient.go will contain a DispatchSayHello().
-    
 
-NodeCommServer.go:
-    Contains methods used by the server.
-    Makes use of the implemented RPC methods in NodeComm.go
 
-NodeCommCLI.go:
-    Contantais methods used by a CLI client.
-    Makes use of the implemented methods in NodeCommClient.go
-
-NodeCommFlags.go
-    Contains message flags.
+                    NodeCommCLI.go
+        NodeCommServer.go
+    NodeCommDispatcherAPI.go       NodeCommListenerAPI.go   
+        NodeComm_pb.go            NodeComm_grpc.pb.go
+                    NodeComm.proto
 
