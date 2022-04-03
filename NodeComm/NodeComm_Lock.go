@@ -7,12 +7,14 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	cp "github.com/otiai10/copy"
 )
 
 type LockValues struct {
 	Sequence  string
+	Timestamp time.Time
 	Lockdelay int
 }
 
@@ -118,7 +120,7 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	n.lockGenerationNumber++
 	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
 
-	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
+	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay, Timestamp: time.Now()}
 	fmt.Println(l.Write)
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
@@ -181,7 +183,7 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 
 	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber)
 
-	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
+	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay, Timestamp: time.Now()}
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {

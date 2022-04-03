@@ -114,6 +114,8 @@ func printHelp(params []string) {
 
 func (n *Node) online() {
 	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_JoinNetwork})
+	// start the lock checker
+	go n.LockChecker()
 }
 
 func (n *Node) offline() {
