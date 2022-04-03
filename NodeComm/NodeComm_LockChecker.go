@@ -28,7 +28,6 @@ func (n *Node) checkFiles(path string) {
 	}
 
 	for _, file := range files {
-		fmt.Println(file.Name())
 		f, err := ioutil.ReadFile(path + "/" + file.Name())
 		if err != nil {
 			log.Fatal(err)
