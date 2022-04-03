@@ -198,5 +198,11 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	if reply.Type == pc.ClientMessage_RedirectToCoordinator {
 		c.HandleMasterRediction(reply)
 		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+	} else if reply.Type == pc.ClientMessage_InvalidLock {
+		fmt.Println("Client's Lock was invalid:", reply.Type, "TODO: idk try again????")
+	} else if reply.Type == pc.ClientMessage_Error {
+		// A major error will be not enough replicas giving the OK to write
+		// Try again and hope for the best
+		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
 	}
 }

@@ -142,40 +142,18 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 
 // Receive a stream of write messages from the client.
 func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequestServer) error {
-	if !n.IsMaster() {
-		return stream.SendAndClose(n.getRedirectionCliMsg(-1))
-	}
-
 	var writeRequestMessage *pc.ClientMessage
 
-	// This is the first message from the client that should
-	// contain a valid write lock.
 	writeRequestMessage, err := stream.Recv()
 	if err != nil {
 		return err
 	}
-
-	// Validate write lock
-	// TODO(Hannah): change to appropriate function
-	if n.validateWriteLock() {
-		n.writeToLocalFile(writeRequestMessage, true)
-
-		// Keep listening for more messages from the client in case
-		// the file is very big.
-		for {
-			writeRequestMessage, err = stream.Recv()
-			if err == io.EOF {
-				return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_FileWrite})
-			}
-			if err != nil {
-				return err
-			}
-
-			n.writeToLocalFile(writeRequestMessage, false)
-		}
-	} else {
-		return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_InvalidLock})
+	if writeRequestMessage.Type == pc.ClientMessage_FileWrite {
+		return n.handleClientWriteRequest(stream, writeRequestMessage)
+	} else if writeRequestMessage.Type == pc.ClientMessage_ReplicaWrites {
+		return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
 	}
+	return nil
 }
 
 func (n *Node) getRedirectionCliMsg(clientId int32) *pc.ClientMessage {
