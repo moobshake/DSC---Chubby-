@@ -158,6 +158,7 @@ message ClientMessage {
         ReadLock = 114;
         WriteLock = 115;
         InvalidLock = 116;
+        ConfirmCoordinator = 117;
     }
 }
 
@@ -224,7 +225,7 @@ service NodeCommPeerService {
 //ListeningService allows replicas to receive messages from clients
 service NodeCommListeningService {
     rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
-    rpc SendReadRequest(ClientMessage) returns (stream FileBodyMessage) {}
+    rpc SendReadRequest(ClientMessage) returns (stream ClientMessage) {}
     rpc SendWriteRequest(stream ClientMessage) returns (ClientMessage) {}
 }
 

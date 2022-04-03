@@ -337,7 +337,7 @@ func (c *nodeCommListeningServiceClient) SendReadRequest(ctx context.Context, in
 }
 
 type NodeCommListeningService_SendReadRequestClient interface {
-	Recv() (*FileBodyMessage, error)
+	Recv() (*ClientMessage, error)
 	grpc.ClientStream
 }
 
@@ -345,8 +345,8 @@ type nodeCommListeningServiceSendReadRequestClient struct {
 	grpc.ClientStream
 }
 
-func (x *nodeCommListeningServiceSendReadRequestClient) Recv() (*FileBodyMessage, error) {
-	m := new(FileBodyMessage)
+func (x *nodeCommListeningServiceSendReadRequestClient) Recv() (*ClientMessage, error) {
+	m := new(ClientMessage)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -451,7 +451,7 @@ func _NodeCommListeningService_SendReadRequest_Handler(srv interface{}, stream g
 }
 
 type NodeCommListeningService_SendReadRequestServer interface {
-	Send(*FileBodyMessage) error
+	Send(*ClientMessage) error
 	grpc.ServerStream
 }
 
@@ -459,7 +459,7 @@ type nodeCommListeningServiceSendReadRequestServer struct {
 	grpc.ServerStream
 }
 
-func (x *nodeCommListeningServiceSendReadRequestServer) Send(m *FileBodyMessage) error {
+func (x *nodeCommListeningServiceSendReadRequestServer) Send(m *ClientMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 

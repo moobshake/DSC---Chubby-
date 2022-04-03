@@ -33,9 +33,6 @@ func (c *Client) DispatchClientMessage(destPRec *pc.PeerRecord, CliMsg *pc.Clien
 	return response
 }
 
-//Msg from Jia Wei: Does the DispatchReadRequest need to return something for methods that call it to use it?
-//Or does the way the locks work mean that just a simple call with no return is necessary?
-
 // DispatchReadRequest sends a read request to the server.
 // The server streams back the file content if the client has a valid lock.
 // Returns if the read request was successful
@@ -65,20 +62,34 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 
 	if err != nil {
 		fmt.Println("DispatchReadRequest: ERROR", err)
+		// Try to find a new master
+		c.FindMaster()
+		c.DispatchReadRequest(readFileName)
+		return
 	}
 
 	// Always truncate the cache file first
 	truncateFile := true
 
 	for {
-		fileContent, err := stream.Recv()
+		cliMsg, err := stream.Recv()
+
 		if err == io.EOF {
 			// Stream has ended
 			break
 		}
 		if err != nil {
 			fmt.Println("DispatchReadRequest: ERROR", err)
+			break
 		}
+
+		if cliMsg.Type == pc.ClientMessage_RedirectToCoordinator {
+			c.HandleMasterRediction(cliMsg)
+			c.DispatchReadRequest(readFileName)
+			break
+		}
+
+		fileContent := cliMsg.FileBody
 
 		if fileContent.Type == pc.FileBodyMessage_Error {
 			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
@@ -119,6 +130,10 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	stream, err := cli.SendWriteRequest(context.Background())
 	if err != nil {
 		fmt.Println("CLIENT FILE WRITE REQUEST ERROR:", err)
+		// Try to find a new master
+		c.FindMaster()
+		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+		return
 	}
 
 	// If we need to modify or create the file first, do this
@@ -131,7 +146,9 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	file, err := os.Open(cacheFilePath)
 	if err != nil {
 		fmt.Println("CLIENT FILE WRITE REQUEST ERROR:", err)
+		return
 	}
+
 	defer file.Close()
 
 	// Get the file from the cache dir in batches
@@ -175,5 +192,11 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	if err != nil {
 		fmt.Println("CLIENT FILE WRITE REQUEST ERROR:", err)
 	}
+
 	fmt.Println("Client write request reply from server:", reply.Type)
+
+	if reply.Type == pc.ClientMessage_RedirectToCoordinator {
+		c.HandleMasterRediction(reply)
+		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+	}
 }

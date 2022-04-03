@@ -18,21 +18,23 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 
 	var nodeReply string
 
-	//If this server is not the master
-	if !(n.IsMaster()) {
-		switch CliMsg.Type {
-		case pc.ClientMessage_FindMaster:
-			n.DispatchClientMessage(CliMsg.ClientAddress, &pc.ClientMessage{Type: pc.ClientMessage_RedirectToCoordinator, Spare: int32(n.idOfMaster), ClientAddress: n.getPeerRecord(n.idOfMaster, true)})
-		default:
-			n.DispatchClientMessage(CliMsg.ClientAddress, &pc.ClientMessage{Type: pc.ClientMessage_RedirectToCoordinator, Spare: int32(n.idOfMaster), ClientAddress: n.getPeerRecord(n.idOfMaster, true)})
-		}
+	// If node is not the master, do not handle any of the messages
+	// just tell the client who is
+	if !n.IsMaster() {
+		return n.getRedirectionCliMsg(CliMsg.ClientID), nil
 	}
 
-	// Replies with master address
 	switch CliMsg.Type {
 	case pc.ClientMessage_FindMaster:
 		// Find master
+		// Replies with master's address
 		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
+		return &pc.ClientMessage{
+			ClientID:      CliMsg.ClientID,
+			Type:          pc.ClientMessage_ConfirmCoordinator,
+			Spare:         int32(n.idOfMaster),
+			ClientAddress: n.getPeerRecord(n.idOfMaster, true),
+		}, nil
 
 	case pc.ClientMessage_SubscribeFileModification, pc.ClientMessage_SubscribeLockAquisition,
 		pc.ClientMessage_SubscribeLockConflict, pc.ClientMessage_SubscribeMasterFailover:
@@ -79,6 +81,16 @@ func (n *Node) SendEventMessage(ctx context.Context, eMsg *pc.EventMessage) (*pc
 func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
 	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 
+	if !n.IsMaster() {
+		// Return a master redirection message
+		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
+		if err := stream.Send(cliMsg); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	if n.validateReadRequest(CliMsg) {
 		// Get the file from the local dir in batches
 		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
@@ -105,7 +117,11 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 				FileContent: buffer[:numBytes],
 			}
 
-			if err := stream.Send(&fileContent); err != nil {
+			cliMsg := pc.ClientMessage{
+				Type:     pc.ClientMessage_FileRead,
+				FileBody: &fileContent,
+			}
+			if err := stream.Send(&cliMsg); err != nil {
 				return err
 			}
 		}
@@ -113,10 +129,10 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 		return nil
 	} else {
 		// Return an invalid lock error
-		fileContent := pc.FileBodyMessage{
-			Type: pc.FileBodyMessage_InvalidLock,
+		cliMsg := pc.ClientMessage{
+			Type: pc.ClientMessage_InvalidLock,
 		}
-		if err := stream.Send(&fileContent); err != nil {
+		if err := stream.Send(&cliMsg); err != nil {
 			return err
 		}
 		return nil
@@ -126,6 +142,10 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 
 // Receive a stream of write messages from the client.
 func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequestServer) error {
+	if !n.IsMaster() {
+		return stream.SendAndClose(n.getRedirectionCliMsg(-1))
+	}
+
 	var writeRequestMessage *pc.ClientMessage
 
 	// This is the first message from the client that should
@@ -155,5 +175,14 @@ func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequ
 		}
 	} else {
 		return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_InvalidLock})
+	}
+}
+
+func (n *Node) getRedirectionCliMsg(clientId int32) *pc.ClientMessage {
+	return &pc.ClientMessage{
+		ClientID:      clientId,
+		Type:          pc.ClientMessage_RedirectToCoordinator,
+		Spare:         int32(n.idOfMaster),
+		ClientAddress: n.getPeerRecord(n.idOfMaster, true),
 	}
 }

@@ -106,12 +106,17 @@ func (c *Client) FindMaster() bool {
 
 		fmt.Printf("Client %d sent master request to: %s:%s\n", c.ClientID, loc.IP, loc.Port)
 		res := c.DispatchClientMessage(&pr, &cm)
+		fmt.Println(res)
 		if res == nil {
-			fmt.Println("Client failed to connect to master.")
-		} else {
+			fmt.Println("Client failed to connect to Chubby replica", i)
+		} else if res.Type == pc.ClientMessage_ConfirmCoordinator {
 			c.MasterAdd.Address = loc.IP
 			c.MasterAdd.Port = loc.Port
 			fmt.Printf("Master Node Registered: %s:%s\n", loc.IP, loc.Port)
+			connected = true
+			return connected
+		} else if res.Type == pc.ClientMessage_RedirectToCoordinator {
+			c.HandleMasterRediction(res)
 			connected = true
 			return connected
 		}
@@ -128,4 +133,10 @@ func (c *Client) DummyFindMaster() bool {
 	c.MasterAdd.Port = masterPort
 	fmt.Printf("Master Node Registered: %s:%s\n", masterIP, masterPort)
 	return true
+}
+
+func (c *Client) HandleMasterRediction(redirectionMsg *pc.ClientMessage) {
+	c.MasterAdd.Address = redirectionMsg.ClientAddress.Address
+	c.MasterAdd.Port = redirectionMsg.ClientAddress.Port
+	fmt.Printf("Master Node Registered: %s:%s\n", c.MasterAdd.Address, c.MasterAdd.Port)
 }

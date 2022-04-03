@@ -156,13 +156,19 @@ func (c Client) subscribe(args []string) {
 	}
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
-	if res.Type == 114 {
-		c.RecvLock(res.StringMessages, "read")
-	} else if res.Type == 115 {
-		c.RecvLock(res.StringMessages, "write")
-	}
+	// Only do handle the response if there are no errors
+	if res != nil {
+		fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
 
-	fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
+		if res.Type == pc.ClientMessage_RedirectToCoordinator {
+			c.HandleMasterRediction(res)
+
+		}
+	} else {
+		// Try to find a new master
+		c.FindMaster()
+		c.subscribe(args)
+	}
 }
 
 //Message from Jia Wei: This function is a bit weird/inefficient because either
@@ -212,11 +218,23 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
-	if res.Type == 114 {
-		c.RecvLock(res.StringMessages, "read")
-	} else if res.Type == 115 {
-		c.RecvLock(res.StringMessages, "write")
-	}
+	// Only do handle the response if there are no errors
+	if res != nil {
+		if res.Type == pc.ClientMessage_ReadLock {
+			c.RecvLock(res.StringMessages, "read")
+		} else if res.Type == pc.ClientMessage_WriteLock {
+			c.RecvLock(res.StringMessages, "write")
+		}
 
-	fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
+		fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
+
+		if res.Type == pc.ClientMessage_RedirectToCoordinator {
+			c.HandleMasterRediction(res)
+			c.ClientRequest(reqType, additionalArgs[0], additionalArgs[1])
+		}
+	} else {
+		// Try to find a new master
+		c.FindMaster()
+		c.ClientRequest(reqType, additionalArgs[0], additionalArgs[1])
+	}
 }
