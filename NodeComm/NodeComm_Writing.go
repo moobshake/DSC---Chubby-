@@ -119,6 +119,8 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 				if n.SendWriteRequestToReplicas(writeRequestBuffers) {
 					// Majority of replicas gave their ok, write from temp to local file
 					if n.writeFromTempToLocal(writeRequestBuffers[0].StringMessages) {
+						// publish file modification event
+						go n.PublishFileContentModification(writeRequestBuffers[0].StringMessages, writeRequestBuffers[0].ClientAddress)
 						return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_FileWrite})
 					} else {
 						n.deleteTempFile(writeRequestBuffers[0].StringMessages)

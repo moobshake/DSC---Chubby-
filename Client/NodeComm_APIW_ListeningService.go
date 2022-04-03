@@ -13,6 +13,22 @@ import (
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 //<><><> Dispatch Methods - These methods SEND messages <><><>
 
+// Send a ClientMessage to the client's own listener
+func (c *Client) DispatchControlClientMessage(CliMsg *pc.ClientMessage) *pc.ClientMessage {
+	conn, err := connectTo(c.ClientAdd.IP, c.ClientAdd.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+	}
+	defer conn.Close()
+
+	cConn := pc.NewClientListeningServiceClient(conn)
+	response, err := cConn.SendClientMessage(context.Background(), CliMsg)
+	if err != nil {
+		fmt.Println("Error dispatching client control message:", err)
+	}
+	return response
+}
+
 //DispatchClientMessage sends a client message
 func (c *Client) DispatchClientMessage(destPRec *pc.PeerRecord, CliMsg *pc.ClientMessage) *pc.ClientMessage {
 	if destPRec == nil {
@@ -93,11 +109,13 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 
 		if fileContent.Type == pc.FileBodyMessage_Error {
 			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
+			c.ClientCacheValidation[readFileName] = false
 			break
 		}
 
 		if fileContent.Type == pc.FileBodyMessage_InvalidLock {
 			fmt.Println("Server sent back:", fileContent.Type)
+			c.ClientCacheValidation[readFileName] = false
 			break
 		}
 
@@ -105,6 +123,7 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 		// Append the rest of the content to the file
 		truncateFile = false
 		fmt.Println("Client received a successful read block")
+		c.ClientCacheValidation[readFileName] = true
 	}
 }
 
@@ -181,6 +200,7 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 			StringMessages: writeFileName,
 			FileBody:       &fileContent,
 			Lock:           writeLock,
+			ClientAddress:  &pc.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
 		}
 
 		if err := stream.Send(&cliMsg); err != nil {

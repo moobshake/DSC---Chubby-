@@ -160,6 +160,7 @@ message ClientMessage {
         InvalidLock = 116;
         ConfirmCoordinator = 117;
         ReplicaWrites = 118;
+        ListLocks = 119;
     }
 }
 
