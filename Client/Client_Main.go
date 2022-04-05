@@ -70,7 +70,6 @@ func (c *Client) StartClient() {
 		return
 	}
 	go c.startClientListener()
-	go c.LockChecker()
 	time.Sleep(1 * time.Second)
 	c.startCLI()
 }

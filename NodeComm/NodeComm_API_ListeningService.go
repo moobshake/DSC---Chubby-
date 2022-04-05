@@ -48,23 +48,23 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 
 	// TODO: Ask YH to change from stringmessages to the lock message
 	case pc.ClientMessage_WriteLock:
-		isAvail, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		isAvail, seq, timestamp, lockdelay := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
 		if isAvail {
 			nodeReply = seq
 		} else {
 			nodeReply = "NotAvail"
 		}
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply}, nil
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply, Lock: &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}}, nil
 
-	// TODO: Ask YH to change from stringmessages to the lock message
+	// TODO: Ask YH to change from stringmessages to the lock message1
 	case pc.ClientMessage_ReadLock:
-		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		isAvail, seq, timestamp, lockdelay := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
 		if isAvail {
 			nodeReply = seq
 		} else {
 			nodeReply = "NotAvail"
 		}
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply}, nil
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply, Lock: &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}}, nil
 	default:
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}

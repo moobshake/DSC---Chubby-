@@ -223,9 +223,9 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 	// Only do handle the response if there are no errors
 	if res != nil {
 		if res.Type == pc.ClientMessage_ReadLock {
-			c.RecvLock(res.StringMessages, "read")
+			c.RecvLock(res.Lock.Sequencer, "read", res.Lock.TimeStamp, int(res.Lock.LockDelay))
 		} else if res.Type == pc.ClientMessage_WriteLock {
-			c.RecvLock(res.StringMessages, "write")
+			c.RecvLock(res.StringMessages, "write", res.Lock.TimeStamp, int(res.Lock.LockDelay))
 		}
 
 		fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)

@@ -120,6 +120,8 @@ message ParamsBody {
 message LockMessage {
     LockType Type = 1;
     string sequencer = 2;
+    string TimeStamp=3;
+    int32 LockDelay=4;
     enum LockType {
         Empty = 0;
         ReadLock = 1;
