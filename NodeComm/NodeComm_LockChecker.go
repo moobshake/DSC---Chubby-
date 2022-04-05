@@ -38,9 +38,11 @@ func (n *Node) checkFiles(path string) {
 			log.Fatal(err)
 		}
 
+		// check if write/read lock is available
 		if len(l.Write) == 1 {
 			n.checkWriteLock(l, file.Name())
-		} else if len(l.Read) != 0 {
+		}
+		if len(l.Read) != 0 {
 			n.checkReadLock(l, file.Name())
 		}
 	}
@@ -49,8 +51,8 @@ func (n *Node) checkFiles(path string) {
 // check if write lock expired
 func (n *Node) checkWriteLock(l Lock, filename string) {
 	for i := range l.Write {
-		timeDiff := time.Now().Second() - l.Write[i].Timestamp.Second()
-		if timeDiff > l.Write[i].Lockdelay {
+		timeDiff := time.Now().Sub(l.Write[i].Timestamp).Seconds()
+		if int(timeDiff) >= l.Write[i].Lockdelay {
 			fmt.Printf("Write lock expired for Client %d\n", i)
 			fn := strings.ReplaceAll(filename, ".lock", "")
 			n.ReleaseWriteLock(fn, i)
@@ -61,8 +63,8 @@ func (n *Node) checkWriteLock(l Lock, filename string) {
 // check if read locks expired
 func (n *Node) checkReadLock(l Lock, filename string) {
 	for i := range l.Read {
-		timeDiff := time.Now().Second() - l.Read[i].Timestamp.Second()
-		if timeDiff > l.Read[i].Lockdelay {
+		timeDiff := time.Now().Sub(l.Read[i].Timestamp).Seconds()
+		if int(timeDiff) >= l.Read[i].Lockdelay {
 			fmt.Printf("Read lock expired for Client %d\n", i)
 			fn := strings.ReplaceAll(filename, ".lock", "")
 			n.ReleaseReadLock(fn, i)

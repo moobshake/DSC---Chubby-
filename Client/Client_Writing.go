@@ -53,9 +53,19 @@ func (c *Client) getValidLocalWriteLock(writeFileName string) *pc.LockMessage {
 
 	// a lock was sucessfully retrived, check type
 	if writeLock, ok := c.Locks[writeFileName]; ok {
+		// if client is holding read lock
+		if writeLock.lockType == READ_CLI {
+			//check if read lock is expired
+			if !c.isLockExpire(writeFileName) { // not expired
+				fmt.Println("Currently holding read lock")
+				return &pc.LockMessage{}
+			} else { // expired then request write lock
+				c.ClientRequest(REQ_LOCK, WRITE_CLI, writeFileName)
+			}
+		}
 		if writeLock.lockType == WRITE_CLI {
-			// check if lock has expired ________________________________ Check with hannah
-			if c.LockCheckExpire(writeFileName) {
+			// check if lock has expired
+			if !c.isLockExpire(writeFileName) {
 				fmt.Println("Retrived write lock:", writeLock.sequencer)
 				// convert valid lock to lock message
 				return &pc.LockMessage{Sequencer: writeLock.sequencer}

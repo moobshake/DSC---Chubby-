@@ -2,7 +2,6 @@ package nodecomm
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -90,7 +89,7 @@ func list_files(data_path string) string {
 }
 
 // filename, mode (exclusive/shared), lock generation number
-func sequencerGenerator(filename string, mode string, lock_gen_num int, t time.Time) string {
+func sequencerGenerator(filename string, mode string, lock_gen_num int) string {
 	return filename + "," + mode + "," + strconv.Itoa(lock_gen_num)
 }
 
@@ -113,16 +112,16 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	}
 
 	// max lock delay of 10 seconds
-	if lockdelay > 10 || lockdelay < 0 { // 10 second upper bound
+	if lockdelay > 100 || lockdelay < 0 { // 10 second upper bound
 		return false, "", "", 0
 	}
 
 	n.lockGenerationNumber++
 	ts := time.Now()
-	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber, ts)
+	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
 
 	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay, Timestamp: ts}
-	fmt.Println(l.Write)
+
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
 		log.Fatal(err)
@@ -182,7 +181,7 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 
 	n.lockGenerationNumber++
 	ts := time.Now()
-	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber, ts)
+	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber)
 
 	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay, Timestamp: ts}
 

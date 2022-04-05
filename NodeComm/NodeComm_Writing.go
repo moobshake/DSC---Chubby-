@@ -1,11 +1,13 @@
 package nodecomm
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -18,8 +20,31 @@ const (
 )
 
 // TODO: Locking when available
-func (n *Node) validateWriteLock() bool {
-	return true
+func (n *Node) validateWriteLock(id int, sequencer string) bool {
+	filename := strings.Split(sequencer, ",")[0]
+
+	// get lock file
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
+	if err != nil {
+		fmt.Println(err)
+	}
+	l := Lock{}
+	err = json.Unmarshal([]byte(file), &l)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// if not empty, else return false
+	if len(l.Write) != 0 {
+		for i := range l.Write {
+			if i == id && l.Write[i].Sequence == sequencer {
+				fmt.Println("Valid write lock")
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // This function appends the file information to the end of the file.
@@ -105,7 +130,7 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 
 	// Validate write lock
 	// TODO(Hannah): change to appropriate function
-	if n.validateWriteLock() {
+	if n.validateWriteLock(int(firstMessage.ClientID), firstMessage.Lock.Sequencer) {
 		n.writeToLocalFile(writeRequestMessage, true, true)
 
 		// Keep listening for more messages from the client in case

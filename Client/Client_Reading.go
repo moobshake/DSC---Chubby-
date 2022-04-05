@@ -56,10 +56,13 @@ func (c *Client) getValidLocalReadLock(readFileName string) *pc.LockMessage {
 	// a lock was sucessfully retrived, check type
 	if readLock, ok := c.Locks[readFileName]; ok {
 		// Reads can use both read and write locks
-		if readLock.lockType == READ_CLI || readLock.lockType == WRITE_CLI {
-			fmt.Println("Retrived read lock:", readLock.sequencer)
-			// convert valid lock to lock message
-			return &pc.LockMessage{Sequencer: readLock.sequencer}
+		// check if lock has expired
+		if !c.isLockExpire(readFileName) {
+			if readLock.lockType == READ_CLI || readLock.lockType == WRITE_CLI {
+				fmt.Println("Retrived read lock:", readLock.sequencer)
+				// convert valid lock to lock message
+				return &pc.LockMessage{Sequencer: readLock.sequencer}
+			}
 		}
 	}
 

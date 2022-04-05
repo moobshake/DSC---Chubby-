@@ -240,7 +240,8 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 func (c Client) ClientReadRequest(readFileName string) {
 	// Check if the file is valid in cache
-	if c.ClientCacheValidation[readFileName] {
+	// Darryl: also check if readLock has expired, if it is, send another request
+	if c.ClientCacheValidation[readFileName] && !c.isLockExpire(readFileName) {
 		fmt.Println("> File", readFileName, "already exists in cache and is valid.")
 	} else {
 		// otherwise, request from master

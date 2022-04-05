@@ -2,10 +2,13 @@ package nodecomm
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -15,12 +18,38 @@ const (
 )
 
 func (n *Node) validateReadRequest(CliMsg *pc.ClientMessage) bool {
-	return n.validateReadLock() && n.validateFileExists(CliMsg)
+	return n.validateReadLock(int(CliMsg.ClientID), CliMsg.Lock.Sequencer) && n.validateFileExists(CliMsg)
 }
 
 // TODO: Locking when available
-func (n *Node) validateReadLock() bool {
-	return true
+func (n *Node) validateReadLock(id int, sequencer string) bool {
+	filename := strings.Split(sequencer, ",")[0]
+
+	// get lock file
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
+	if err != nil {
+		fmt.Println(err)
+	}
+	l := Lock{}
+	err = json.Unmarshal([]byte(file), &l)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// read lock empty, means it expired
+	if len(l.Read) == 0 {
+		return false
+	} else {
+		for i := range l.Read {
+			// if id is found in l.read and sequencer is the same
+			if i == id && l.Read[i].Sequence == sequencer {
+				fmt.Println("Valid read lock")
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // If the file exists, store it in local memory

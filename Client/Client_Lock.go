@@ -15,14 +15,14 @@ type lock struct {
 	lockDelay int
 }
 
-func (c *Client) LockCheckExpire(filename string) bool {
-	timeDiff := time.Now().Second() - c.Locks[filename].timestamp.Second()
-	if timeDiff > c.Locks[filename].lockDelay {
+func (c *Client) isLockExpire(filename string) bool {
+	timeDiff := time.Now().Sub(c.Locks[filename].timestamp).Seconds()
+	if int(timeDiff) >= c.Locks[filename].lockDelay {
 		fmt.Printf("%s lock expired for Client\n", c.Locks[filename].lockType)
 		c.RelLock(filename)
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 func (c *Client) LockChecker() {

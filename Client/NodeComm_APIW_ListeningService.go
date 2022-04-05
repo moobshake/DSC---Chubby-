@@ -57,6 +57,11 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 
 	readLock := c.getValidLocalReadLock(readFileName)
 
+	if readLock.Sequencer == "" {
+		fmt.Println("Cannot get lock. Try again.")
+		return
+	}
+
 	cliMsg := pc.ClientMessage{
 		ClientID: int32(c.ClientID),
 		Type:     pc.ClientMessage_FileRead,
@@ -141,6 +146,11 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 // sending it to the server.
 func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile bool) {
 	writeLock := c.getValidLocalWriteLock(writeFileName)
+
+	if writeLock.Sequencer == "" {
+		fmt.Println("Cannot get lock. Try again.")
+		return
+	}
 
 	// create stream for message sending
 	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
