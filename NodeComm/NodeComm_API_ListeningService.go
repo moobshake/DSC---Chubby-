@@ -3,9 +3,6 @@ package nodecomm
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -81,66 +78,23 @@ func (n *Node) SendEventMessage(ctx context.Context, eMsg *pc.EventMessage) (*pc
 func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
 	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 
-	if !n.IsMaster() {
-		// Return a master redirection message
-		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
-		if err := stream.Send(cliMsg); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if n.validateReadRequest(CliMsg) {
-		// Get the file from the local dir in batches
-		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
-		file, err := os.Open(localFilePath)
-		if err != nil {
-			fmt.Println("CLIENT FILE READ REQUEST ERROR:", err)
-		}
-		defer file.Close()
-
-		buffer := make([]byte, READ_MAX_BYTE_SIZE)
-
-		for {
-			numBytes, err := file.Read(buffer)
-
-			if err != nil {
-				if err != io.EOF {
-					fmt.Println(err)
-				}
-				break
-			}
-			fileContent := pc.FileBodyMessage{
-				Type:        pc.FileBodyMessage_ReadMode,
-				FileName:    CliMsg.StringMessages,
-				FileContent: buffer[:numBytes],
-			}
-
-			cliMsg := pc.ClientMessage{
-				Type:     pc.ClientMessage_FileRead,
-				FileBody: &fileContent,
-			}
-			if err := stream.Send(&cliMsg); err != nil {
-				return err
-			}
-		}
-
-		return nil
+	if CliMsg.Type == pc.ClientMessage_FileRead {
+		return n.handleReadRequestFromClient(CliMsg, stream)
+	} else if CliMsg.Type == pc.ClientMessage_ReplicaReadCheck {
+		return n.handleReadRequestFromMaster(CliMsg, stream)
 	} else {
-		// Return an invalid lock error
+		// Return an error
 		cliMsg := pc.ClientMessage{
-			Type: pc.ClientMessage_InvalidLock,
+			Type: pc.ClientMessage_Error,
 		}
 		if err := stream.Send(&cliMsg); err != nil {
 			return err
 		}
 		return nil
 	}
-
 }
 
-// Receive a stream of write messages from the client.
+// Receive a stream of write messages from the client or from the master for replication.
 func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequestServer) error {
 	var writeRequestMessage *pc.ClientMessage
 

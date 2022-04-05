@@ -161,6 +161,7 @@ message ClientMessage {
         ConfirmCoordinator = 117;
         ReplicaWrites = 118;
         ListLocks = 119;
+        ReplicaReadCheck = 120;
     }
 }
 
