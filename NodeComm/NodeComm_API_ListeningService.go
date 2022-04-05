@@ -3,6 +3,9 @@ package nodecomm
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -78,14 +81,76 @@ func (n *Node) SendEventMessage(ctx context.Context, eMsg *pc.EventMessage) (*pc
 func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
 	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 
-	if CliMsg.Type == pc.ClientMessage_FileRead {
-		return n.handleReadRequestFromClient(CliMsg, stream)
-	} else if CliMsg.Type == pc.ClientMessage_ReplicaReadCheck {
-		return n.handleReadRequestFromMaster(CliMsg, stream)
+	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
+
+	if !n.IsMaster() {
+		// Return a master redirection message
+		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
+		if err := stream.Send(cliMsg); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if n.validateReadRequest(CliMsg) {
+		// Check if the file is consistent across the majority of replicas
+		// Create the serverMsg with the file name to check.
+		replicaMsg := pc.ServerMessage{
+			Type:           pc.ServerMessage_ReplicaReadCheck,
+			StringMessages: CliMsg.StringMessages,
+		}
+		if !n.SendRequestToReplicas(&replicaMsg) {
+			// Return an Error
+			cliMsg := pc.ClientMessage{
+				Type:           pc.ClientMessage_Error,
+				StringMessages: "Majority of replicas do not agree on the read file.",
+			}
+			if err := stream.Send(&cliMsg); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		// Get the file from the local dir in batches
+		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
+		file, err := os.Open(localFilePath)
+		if err != nil {
+			fmt.Println("CLIENT FILE READ REQUEST ERROR:", err)
+		}
+		defer file.Close()
+
+		buffer := make([]byte, READ_MAX_BYTE_SIZE)
+
+		for {
+			numBytes, err := file.Read(buffer)
+
+			if err != nil {
+				if err != io.EOF {
+					fmt.Println(err)
+				}
+				break
+			}
+			fileContent := pc.FileBodyMessage{
+				Type:        pc.FileBodyMessage_ReadMode,
+				FileName:    CliMsg.StringMessages,
+				FileContent: buffer[:numBytes],
+			}
+
+			cliMsg := pc.ClientMessage{
+				Type:     pc.ClientMessage_FileRead,
+				FileBody: &fileContent,
+			}
+			if err := stream.Send(&cliMsg); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	} else {
-		// Return an error
+		// Return an invalid lock error
 		cliMsg := pc.ClientMessage{
-			Type: pc.ClientMessage_Error,
+			Type: pc.ClientMessage_InvalidLock,
 		}
 		if err := stream.Send(&cliMsg); err != nil {
 			return err
@@ -117,4 +182,30 @@ func (n *Node) getRedirectionCliMsg(clientId int32) *pc.ClientMessage {
 		Spare:         int32(n.idOfMaster),
 		ClientAddress: n.getPeerRecord(n.idOfMaster, true),
 	}
+}
+
+// EstablishReplicaConsensus is used to handle messages recieved from the master
+// to the replicas. This is used to attempt to ensure consensus.
+// Note: Write Requests are not processed here due to streaming
+func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.ServerMessage) (*pc.ServerMessage, error) {
+	fmt.Printf("Replica %d receiving message from master:%s\n", n.myPRecord.Id, serverMsg.Type)
+
+	switch serverMsg.Type {
+	// TODO: YH create the functions this case will use, feel free to change the serverMsg Type
+	case pc.ServerMessage_ReqLock, pc.ServerMessage_ReadLock, pc.ServerMessage_WriteLock:
+		// Find master
+		// Replies with master's address
+		return nil, nil
+	case pc.ServerMessage_ReplicaReadCheck:
+		return n.handleReadRequestFromMaster(serverMsg), nil
+
+	case pc.ServerMessage_SubscribeFileModification, pc.ServerMessage_SubscribeLockConflict,
+		pc.ServerMessage_SubscribeMasterFailover, pc.ServerMessage_SubscribeLockAquisition:
+		n.ReplicaClientSubscriptionsHandler(serverMsg)
+		return &pc.ServerMessage{Type: pc.ServerMessage_Ack}, nil
+	default:
+		fmt.Printf("> Replica requesting for something that is not available %s\n", serverMsg.Type)
+	}
+
+	return &pc.ServerMessage{Type: pc.ServerMessage_Error, StringMessages: "Request not available"}, nil
 }

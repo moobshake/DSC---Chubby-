@@ -114,7 +114,7 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 			writeRequestMessage, err := stream.Recv()
 			if err == io.EOF {
 				// Make sure that the majority of replicas give their OK to writing
-				if n.SendRequestToReplicas(writeRequestBuffers, pc.ClientMessage_FileWrite) {
+				if n.SendWriteRequestToReplicas(writeRequestBuffers) {
 					// Majority of replicas gave their ok, write from temp to local file
 					if n.writeFromTempToLocal(writeRequestBuffers[0].StringMessages) {
 						// publish file modification event

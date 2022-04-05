@@ -139,7 +139,7 @@ func (c Client) subscribe(args []string) {
 		cm = pc.ClientMessage{
 			ClientID:       int32(c.ClientID),
 			Type:           pc.ClientMessage_SubscribeLockAquisition,
-			StringMessages: args[0],
+			StringMessages: args[1],
 			ClientAddress:  &pc.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
 		}
 		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, "LockAcquire")
@@ -151,7 +151,7 @@ func (c Client) subscribe(args []string) {
 		cm = pc.ClientMessage{
 			ClientID:       int32(c.ClientID),
 			Type:           pc.ClientMessage_SubscribeLockConflict,
-			StringMessages: args[0],
+			StringMessages: args[1],
 			ClientAddress:  &pc.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
 		}
 		fmt.Printf("Client %d creating Subsciption Request %s \n", c.ClientID, "LockConflict")
@@ -173,9 +173,6 @@ func (c Client) subscribe(args []string) {
 	}
 }
 
-//Message from Jia Wei: This function is a bit weird/inefficient because either
-//the way this function is implemented or the way the client CLI is implemented
-//does not make sense.
 //In the client CLI above, there is already a switch case that picks the correct
 //branch based on user input. Thus, it makes sense to have the branch directly
 //does what the user input wants (such as directly dispatching the message)

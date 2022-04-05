@@ -54,109 +54,29 @@ func (n *Node) getFileChecksum(fullFilePath string) []byte {
 	return checksum.Sum(nil)
 }
 
-// -------------------------------------------
-// |       GRPC READ STREAMING UTILS          |
-// --------------------------------------------
+// -----------------------------------------
+// |       GRPC READ REPLICA UTILS          |
+// ------------------------------------------
 
-// handleReadRequestFromClient handles the read request from the client directly
-// It streams the required file from local data to the client in batches
-func (n *Node) handleReadRequestFromClient(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
-	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
+// handleReadRequestFromMaster sends back the checksum of the requested file to the master.
+func (n *Node) handleReadRequestFromMaster(serverMsg *pc.ServerMessage) *pc.ServerMessage {
+	fmt.Printf("> Master requesting checksum for read %s\n", serverMsg.StringMessages)
 
-	if !n.IsMaster() {
-		// Return a master redirection message
-		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
-		if err := stream.Send(cliMsg); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if n.validateReadRequest(CliMsg) {
-		// Check if the file is consistent across the majority of replicas
-		if !n.SendRequestToReplicas([]*pc.ClientMessage{CliMsg}, pc.ClientMessage_FileRead) {
-			// Return an Error
-			cliMsg := pc.ClientMessage{
-				Type:           pc.ClientMessage_Error,
-				StringMessages: "Majority of replicas do not agree on the read file.",
-			}
-			if err := stream.Send(&cliMsg); err != nil {
-				return err
-			}
-			return nil
-		}
-
-		// Get the file from the local dir in batches
-		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
-		file, err := os.Open(localFilePath)
-		if err != nil {
-			fmt.Println("CLIENT FILE READ REQUEST ERROR:", err)
-		}
-		defer file.Close()
-
-		buffer := make([]byte, READ_MAX_BYTE_SIZE)
-
-		for {
-			numBytes, err := file.Read(buffer)
-
-			if err != nil {
-				if err != io.EOF {
-					fmt.Println(err)
-				}
-				break
-			}
-			fileContent := pc.FileBodyMessage{
-				Type:        pc.FileBodyMessage_ReadMode,
-				FileName:    CliMsg.StringMessages,
-				FileContent: buffer[:numBytes],
-			}
-
-			cliMsg := pc.ClientMessage{
-				Type:     pc.ClientMessage_FileRead,
-				FileBody: &fileContent,
-			}
-			if err := stream.Send(&cliMsg); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	} else {
-		// Return an invalid lock error
-		cliMsg := pc.ClientMessage{
-			Type: pc.ClientMessage_InvalidLock,
-		}
-		if err := stream.Send(&cliMsg); err != nil {
-			return err
-		}
-		return nil
-	}
-
-}
-
-// handleReadRequestFromMaster sends back the checksum of the requested file.
-func (n *Node) handleReadRequestFromMaster(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
-	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
-
-	// Get the file from the local dir in batches
-	localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
+	// Get Checksum
+	localFilePath := filepath.Join(n.nodeDataPath, serverMsg.StringMessages)
 	checksum := n.getFileChecksum(localFilePath)
 
+	// Checksum in a byte array, send it as a file content
 	fileContent := pc.FileBodyMessage{
 		Type:        pc.FileBodyMessage_ReadMode,
-		FileName:    CliMsg.StringMessages,
+		FileName:    serverMsg.StringMessages,
 		FileContent: checksum,
 	}
 
-	cliMsg := pc.ClientMessage{
-		Type:     pc.ClientMessage_Ack,
+	serverMessage := pc.ServerMessage{
+		Type:     pc.ServerMessage_Ack,
 		FileBody: &fileContent,
 	}
 
-	if err := stream.Send(&cliMsg); err != nil {
-		return err
-	}
-
-	return nil
+	return &serverMessage
 }
