@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Locks tracking
@@ -11,20 +12,37 @@ type lock struct {
 	sequencer string
 }
 
+func (c *Client) LockChecker() {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case <-ticker.C:
+			c.checker()
+		}
+	}
+}
+
+func (c *Client) checker() {
+	for i := range c.Locks {
+		fmt.Println(i)
+	}
+}
+
 // ListLocks lists the current locks that client is holding
-func (C *Client) ListLocks() {
-	if len(C.Locks) == 0 {
+func (c *Client) ListLocks() {
+	if len(c.Locks) == 0 {
 		fmt.Printf("> Client is currently holding no locks\n")
 	} else {
 		fmt.Printf("> Client is currently holding:\n")
-		for i := range C.Locks {
-			fmt.Printf("%v\n", C.Locks[i])
+		for i := range c.Locks {
+			fmt.Printf("%v\n", c.Locks[i])
 		}
 	}
 }
 
 // RecvLock receives Locks
-func (C *Client) RecvLock(sequencer string, lType string) {
+func (c *Client) RecvLock(sequencer string, lType string) {
 	var newLock lock
 
 	if lType == READ_CLI {
@@ -43,8 +61,8 @@ func (C *Client) RecvLock(sequencer string, lType string) {
 	}
 
 	fileName := strings.Split(sequencer, ":")[0]
-	C.Locks[fileName] = newLock
-	C.ListLocks()
+	c.Locks[fileName] = newLock
+	c.ListLocks()
 }
 
 // RelLock release Read Lock (Not implemented yet)
