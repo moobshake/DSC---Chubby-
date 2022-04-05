@@ -87,15 +87,49 @@ func (n *Node) PrintRecordArray(records []*pc.PeerRecord) {
 }
 
 //ClientSubscritipnHandler is the handler for subscriptions - kinda like the accountant of subscriptions
+// This function is used by the master
 func (n *Node) ClientSubscriptionsHandler(CliMsg *pc.ClientMessage) {
+	var serverMsgType pc.ServerMessage_MessageType
+
 	switch CliMsg.Type {
 	case pc.ClientMessage_SubscribeMasterFailover:
 		n.subscribeMasterFailOver(CliMsg.ClientAddress)
+		serverMsgType = pc.ServerMessage_SubscribeMasterFailover
 	case pc.ClientMessage_SubscribeFileModification:
 		n.subscribeFileContentModification(CliMsg.ClientAddress, CliMsg.StringMessages)
+		serverMsgType = pc.ServerMessage_SubscribeFileModification
 	case pc.ClientMessage_SubscribeLockAquisition:
 		n.subscribeLockAcquisition(CliMsg.ClientAddress, CliMsg.StringMessages)
+		serverMsgType = pc.ServerMessage_SubscribeLockAquisition
 	case pc.ClientMessage_SubscribeLockConflict:
 		n.subscribeConflictingLockRequest(CliMsg.ClientAddress, CliMsg.StringMessages)
+		serverMsgType = pc.ServerMessage_SubscribeLockConflict
 	}
+
+	repliaMsg := pc.ServerMessage{
+		Type:           serverMsgType,
+		StringMessages: CliMsg.StringMessages,
+		PeerRecord:     CliMsg.ClientAddress,
+	}
+
+	n.SendRequestToReplicas(&repliaMsg)
+
+}
+
+//ReplicaClientSubscriptionsHandler is the handler for subscriptions
+// This function is used by the replicas to have the same subscription record
+// as the master.
+func (n *Node) ReplicaClientSubscriptionsHandler(serverMessage *pc.ServerMessage) {
+	switch serverMessage.Type {
+	case pc.ServerMessage_SubscribeMasterFailover:
+		n.subscribeMasterFailOver(serverMessage.PeerRecord)
+	case pc.ServerMessage_SubscribeFileModification:
+		n.subscribeFileContentModification(serverMessage.PeerRecord, serverMessage.StringMessages)
+	case pc.ServerMessage_SubscribeLockAquisition:
+		n.subscribeLockAcquisition(serverMessage.PeerRecord, serverMessage.StringMessages)
+	case pc.ServerMessage_SubscribeLockConflict:
+		n.subscribeConflictingLockRequest(serverMessage.PeerRecord, serverMessage.StringMessages)
+	}
+
+	fmt.Println(serverMessage.StringMessages, serverMessage.Type)
 }

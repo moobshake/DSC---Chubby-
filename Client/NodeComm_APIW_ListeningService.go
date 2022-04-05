@@ -105,6 +105,12 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 			break
 		}
 
+		if cliMsg.Type == pc.ClientMessage_Error {
+			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
+			c.ClientCacheValidation[readFileName] = false
+			break
+		}
+
 		fileContent := cliMsg.FileBody
 
 		if fileContent.Type == pc.FileBodyMessage_Error {
@@ -222,7 +228,9 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 		fmt.Println("Client's Lock was invalid:", reply.Type, "TODO: idk try again????")
 	} else if reply.Type == pc.ClientMessage_Error {
 		// A major error will be not enough replicas giving the OK to write
-		// Try again and hope for the best
-		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+		fmt.Println("Client's Write Request invalid, majority rejected:", reply.Type)
+
+		// // Uncomment to try again and hope for the best
+		// c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
 	}
 }

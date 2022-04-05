@@ -81,6 +81,8 @@ func (n *Node) SendEventMessage(ctx context.Context, eMsg *pc.EventMessage) (*pc
 func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
 	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 
+	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
+
 	if !n.IsMaster() {
 		// Return a master redirection message
 		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
@@ -92,6 +94,24 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 	}
 
 	if n.validateReadRequest(CliMsg) {
+		// Check if the file is consistent across the majority of replicas
+		// Create the serverMsg with the file name to check.
+		replicaMsg := pc.ServerMessage{
+			Type:           pc.ServerMessage_ReplicaReadCheck,
+			StringMessages: CliMsg.StringMessages,
+		}
+		if !n.SendRequestToReplicas(&replicaMsg) {
+			// Return an Error
+			cliMsg := pc.ClientMessage{
+				Type:           pc.ClientMessage_Error,
+				StringMessages: "Majority of replicas do not agree on the read file.",
+			}
+			if err := stream.Send(&cliMsg); err != nil {
+				return err
+			}
+			return nil
+		}
+
 		// Get the file from the local dir in batches
 		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
 		file, err := os.Open(localFilePath)
@@ -137,10 +157,9 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 		}
 		return nil
 	}
-
 }
 
-// Receive a stream of write messages from the client.
+// Receive a stream of write messages from the client or from the master for replication.
 func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequestServer) error {
 	var writeRequestMessage *pc.ClientMessage
 
@@ -163,4 +182,30 @@ func (n *Node) getRedirectionCliMsg(clientId int32) *pc.ClientMessage {
 		Spare:         int32(n.idOfMaster),
 		ClientAddress: n.getPeerRecord(n.idOfMaster, true),
 	}
+}
+
+// EstablishReplicaConsensus is used to handle messages recieved from the master
+// to the replicas. This is used to attempt to ensure consensus.
+// Note: Write Requests are not processed here due to streaming
+func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.ServerMessage) (*pc.ServerMessage, error) {
+	fmt.Printf("Replica %d receiving message from master:%s\n", n.myPRecord.Id, serverMsg.Type)
+
+	switch serverMsg.Type {
+	// TODO: YH create the functions this case will use, feel free to change the serverMsg Type
+	case pc.ServerMessage_ReqLock, pc.ServerMessage_ReadLock, pc.ServerMessage_WriteLock:
+		// Find master
+		// Replies with master's address
+		return nil, nil
+	case pc.ServerMessage_ReplicaReadCheck:
+		return n.handleReadRequestFromMaster(serverMsg), nil
+
+	case pc.ServerMessage_SubscribeFileModification, pc.ServerMessage_SubscribeLockConflict,
+		pc.ServerMessage_SubscribeMasterFailover, pc.ServerMessage_SubscribeLockAquisition:
+		n.ReplicaClientSubscriptionsHandler(serverMsg)
+		return &pc.ServerMessage{Type: pc.ServerMessage_Ack}, nil
+	default:
+		fmt.Printf("> Replica requesting for something that is not available %s\n", serverMsg.Type)
+	}
+
+	return &pc.ServerMessage{Type: pc.ServerMessage_Error, StringMessages: "Request not available"}, nil
 }

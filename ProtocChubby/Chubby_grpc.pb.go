@@ -148,6 +148,7 @@ type NodeCommPeerServiceClient interface {
 	KeepAlive(ctx context.Context, in *NodeMessage, opts ...grpc.CallOption) (*NodeMessage, error)
 	SendMessage(ctx context.Context, in *NodeMessage, opts ...grpc.CallOption) (*NodeMessage, error)
 	SendCoordinationMessage(ctx context.Context, in *CoordinationMessage, opts ...grpc.CallOption) (*CoordinationMessage, error)
+	EstablishReplicaConsensus(ctx context.Context, in *ServerMessage, opts ...grpc.CallOption) (*ServerMessage, error)
 }
 
 type nodeCommPeerServiceClient struct {
@@ -185,6 +186,15 @@ func (c *nodeCommPeerServiceClient) SendCoordinationMessage(ctx context.Context,
 	return out, nil
 }
 
+func (c *nodeCommPeerServiceClient) EstablishReplicaConsensus(ctx context.Context, in *ServerMessage, opts ...grpc.CallOption) (*ServerMessage, error) {
+	out := new(ServerMessage)
+	err := c.cc.Invoke(ctx, "/main.NodeCommPeerService/EstablishReplicaConsensus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodeCommPeerServiceServer is the server API for NodeCommPeerService service.
 // All implementations must embed UnimplementedNodeCommPeerServiceServer
 // for forward compatibility
@@ -192,6 +202,7 @@ type NodeCommPeerServiceServer interface {
 	KeepAlive(context.Context, *NodeMessage) (*NodeMessage, error)
 	SendMessage(context.Context, *NodeMessage) (*NodeMessage, error)
 	SendCoordinationMessage(context.Context, *CoordinationMessage) (*CoordinationMessage, error)
+	EstablishReplicaConsensus(context.Context, *ServerMessage) (*ServerMessage, error)
 	mustEmbedUnimplementedNodeCommPeerServiceServer()
 }
 
@@ -207,6 +218,9 @@ func (UnimplementedNodeCommPeerServiceServer) SendMessage(context.Context, *Node
 }
 func (UnimplementedNodeCommPeerServiceServer) SendCoordinationMessage(context.Context, *CoordinationMessage) (*CoordinationMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendCoordinationMessage not implemented")
+}
+func (UnimplementedNodeCommPeerServiceServer) EstablishReplicaConsensus(context.Context, *ServerMessage) (*ServerMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EstablishReplicaConsensus not implemented")
 }
 func (UnimplementedNodeCommPeerServiceServer) mustEmbedUnimplementedNodeCommPeerServiceServer() {}
 
@@ -275,6 +289,24 @@ func _NodeCommPeerService_SendCoordinationMessage_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeCommPeerService_EstablishReplicaConsensus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeCommPeerServiceServer).EstablishReplicaConsensus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/main.NodeCommPeerService/EstablishReplicaConsensus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeCommPeerServiceServer).EstablishReplicaConsensus(ctx, req.(*ServerMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodeCommPeerService_ServiceDesc is the grpc.ServiceDesc for NodeCommPeerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -293,6 +325,10 @@ var NodeCommPeerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendCoordinationMessage",
 			Handler:    _NodeCommPeerService_SendCoordinationMessage_Handler,
+		},
+		{
+			MethodName: "EstablishReplicaConsensus",
+			Handler:    _NodeCommPeerService_EstablishReplicaConsensus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

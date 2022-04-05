@@ -1,6 +1,9 @@
 package nodecomm
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -32,4 +35,48 @@ func (n *Node) validateFileExists(CliMsg *pc.ClientMessage) bool {
 	} else {
 		return false
 	}
+}
+
+// Returns the checksum of a given file
+func (n *Node) getFileChecksum(fullFilePath string) []byte {
+	fileToCheck, err := os.Open(fullFilePath)
+	if err != nil {
+		fmt.Println("getFileChecksum ERROR:", err)
+		return []byte{}
+	}
+	defer fileToCheck.Close()
+
+	checksum := sha256.New()
+	if _, err := io.Copy(checksum, fileToCheck); err != nil {
+		fmt.Println("getFileChecksum ERROR:", err)
+		return []byte{}
+	}
+	return checksum.Sum(nil)
+}
+
+// -----------------------------------------
+// |       GRPC READ REPLICA UTILS          |
+// ------------------------------------------
+
+// handleReadRequestFromMaster sends back the checksum of the requested file to the master.
+func (n *Node) handleReadRequestFromMaster(serverMsg *pc.ServerMessage) *pc.ServerMessage {
+	fmt.Printf("> Master requesting checksum for read %s\n", serverMsg.StringMessages)
+
+	// Get Checksum
+	localFilePath := filepath.Join(n.nodeDataPath, serverMsg.StringMessages)
+	checksum := n.getFileChecksum(localFilePath)
+
+	// Checksum in a byte array, send it as a file content
+	fileContent := pc.FileBodyMessage{
+		Type:        pc.FileBodyMessage_ReadMode,
+		FileName:    serverMsg.StringMessages,
+		FileContent: checksum,
+	}
+
+	serverMessage := pc.ServerMessage{
+		Type:     pc.ServerMessage_Ack,
+		FileBody: &fileContent,
+	}
+
+	return &serverMessage
 }
