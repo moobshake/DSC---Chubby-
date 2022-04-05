@@ -25,6 +25,23 @@ func (c *Client) LockCheckExpire(filename string) bool {
 	return true
 }
 
+func (c *Client) LockChecker() {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case <-ticker.C:
+			c.checker()
+		}
+	}
+}
+
+func (c *Client) checker() {
+	for i := range c.Locks {
+		fmt.Println(i)
+	}
+}
+
 // ListLocks lists the current locks that client is holding
 func (c *Client) ListLocks() {
 	if len(c.Locks) == 0 {
