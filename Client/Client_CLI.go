@@ -157,9 +157,9 @@ func (c Client) subscribe(args []string) {
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
 	if res.Type == 114 {
-		c.RecvLock(res.StringMessages, "read")
+		c.RecvLock(res.Lock, "read")
 	} else if res.Type == 115 {
-		c.RecvLock(res.StringMessages, "write")
+		c.RecvLock(res.Lock, "write")
 	}
 
 	fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)
@@ -213,9 +213,9 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
 
 	if res.Type == 114 {
-		c.RecvLock(res.StringMessages, "read")
+		c.RecvLock(res.Lock, "read")
 	} else if res.Type == 115 {
-		c.RecvLock(res.StringMessages, "write")
+		c.RecvLock(res.Lock, "write")
 	}
 
 	fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)

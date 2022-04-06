@@ -52,7 +52,13 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		} else {
 			nodeReply = "NotAvail"
 		}
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply}, nil
+
+		l := pc.LockMessage{
+			Type:      1,
+			Sequencer: nodeReply,
+		}
+
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, Lock: &l}, nil
 
 	// TODO: Ask YH to change from stringmessages to the lock message
 	case pc.ClientMessage_ReadLock:
@@ -62,7 +68,13 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		} else {
 			nodeReply = "NotAvail"
 		}
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply}, nil
+
+		l := pc.LockMessage{
+			Type:      2,
+			Sequencer: nodeReply,
+		}
+
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, Lock: &l}, nil
 	default:
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}

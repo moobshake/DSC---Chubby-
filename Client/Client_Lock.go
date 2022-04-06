@@ -1,6 +1,7 @@
 package client
 
 import (
+	pc "assignment1/main/protocchubby"
 	"fmt"
 	"strings"
 )
@@ -24,25 +25,25 @@ func (C *Client) ListLocks() {
 }
 
 // RecvLock receives Locks
-func (C *Client) RecvLock(sequencer string, lType string) {
+func (C *Client) RecvLock(l *pc.LockMessage, lType string) {
 	var newLock lock
 
 	if lType == READ_CLI {
 		newLock = lock{
 			lockType:  READ_CLI,
-			sequencer: sequencer,
+			sequencer: l.Sequencer,
 		}
 	} else if lType == WRITE_CLI {
 		newLock = lock{
 			lockType:  WRITE_CLI,
-			sequencer: sequencer,
+			sequencer: l.Sequencer,
 		}
 	} else {
 		fmt.Println("Lock was not available")
 		return
 	}
 
-	fileName := strings.Split(sequencer, ":")[0]
+	fileName := strings.Split(l.Sequencer, ":")[0]
 	C.Locks[fileName] = newLock
 	C.ListLocks()
 }
