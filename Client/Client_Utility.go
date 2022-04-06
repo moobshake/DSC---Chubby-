@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+const (
+	GRPC_CLIENT_TO_SEVER_CONN_TIMEOUT = 1 * time.Second
 )
 
 //connectTo abstracts three lines of grpc client code
@@ -15,6 +20,14 @@ func connectTo(address, port string) (*grpc.ClientConn, error) {
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial(address+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	return conn, err
+
+	// Putting this here in case we want a timeout
+	// ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	// conn, err := grpc.DialContext(ctx, address+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// if err != nil {
+	// 	fmt.Println("Dial Error:", err)
+	// }
+	// return conn, err
 }
 
 // Lookup Table Methods

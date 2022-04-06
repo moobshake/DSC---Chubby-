@@ -18,21 +18,23 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 
 	var nodeReply string
 
-	//If this server is not the master
-	if !(n.IsMaster()) {
-		switch CliMsg.Type {
-		case pc.ClientMessage_FindMaster:
-			n.DispatchClientMessage(CliMsg.ClientAddress, &pc.ClientMessage{Type: pc.ClientMessage_RedirectToCoordinator, Spare: int32(n.idOfMaster), ClientAddress: n.getPeerRecord(n.idOfMaster, true)})
-		default:
-			n.DispatchClientMessage(CliMsg.ClientAddress, &pc.ClientMessage{Type: pc.ClientMessage_RedirectToCoordinator, Spare: int32(n.idOfMaster), ClientAddress: n.getPeerRecord(n.idOfMaster, true)})
-		}
+	// If node is not the master, do not handle any of the messages
+	// just tell the client who is
+	if !n.IsMaster() {
+		return n.getRedirectionCliMsg(CliMsg.ClientID), nil
 	}
 
-	// Replies with master address
 	switch CliMsg.Type {
 	case pc.ClientMessage_FindMaster:
 		// Find master
+		// Replies with master's address
 		fmt.Printf("Client %d looking for master\n", CliMsg.ClientID)
+		return &pc.ClientMessage{
+			ClientID:      CliMsg.ClientID,
+			Type:          pc.ClientMessage_ConfirmCoordinator,
+			Spare:         int32(n.idOfMaster),
+			ClientAddress: n.getPeerRecord(n.idOfMaster, true),
+		}, nil
 
 	case pc.ClientMessage_SubscribeFileModification, pc.ClientMessage_SubscribeLockAquisition,
 		pc.ClientMessage_SubscribeLockConflict, pc.ClientMessage_SubscribeMasterFailover:
@@ -46,35 +48,23 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 
 	// TODO: Ask YH to change from stringmessages to the lock message
 	case pc.ClientMessage_WriteLock:
-		isAvail, seq := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		isAvail, seq, timestamp, lockdelay := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 20)
 		if isAvail {
 			nodeReply = seq
 		} else {
 			nodeReply = "NotAvail"
 		}
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply, Lock: &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}}, nil
 
-		l := pc.LockMessage{
-			Type:      1,
-			Sequencer: nodeReply,
-		}
-
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, Lock: &l}, nil
-
-	// TODO: Ask YH to change from stringmessages to the lock message
+	// TODO: Ask YH to change from stringmessages to the lock message1
 	case pc.ClientMessage_ReadLock:
-		isAvail, seq := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 5)
+		isAvail, seq, timestamp, lockdelay := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 20)
 		if isAvail {
 			nodeReply = seq
 		} else {
 			nodeReply = "NotAvail"
 		}
-
-		l := pc.LockMessage{
-			Type:      2,
-			Sequencer: nodeReply,
-		}
-
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, Lock: &l}, nil
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply, Lock: &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}}, nil
 	default:
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}
@@ -91,7 +81,37 @@ func (n *Node) SendEventMessage(ctx context.Context, eMsg *pc.EventMessage) (*pc
 func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
 	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 
+	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
+
+	if !n.IsMaster() {
+		// Return a master redirection message
+		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
+		if err := stream.Send(cliMsg); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	if n.validateReadRequest(CliMsg) {
+		// Check if the file is consistent across the majority of replicas
+		// Create the serverMsg with the file name to check.
+		replicaMsg := pc.ServerMessage{
+			Type:           pc.ServerMessage_ReplicaReadCheck,
+			StringMessages: CliMsg.StringMessages,
+		}
+		if !n.SendRequestToReplicas(&replicaMsg) {
+			// Return an Error
+			cliMsg := pc.ClientMessage{
+				Type:           pc.ClientMessage_Error,
+				StringMessages: "Majority of replicas do not agree on the read file.",
+			}
+			if err := stream.Send(&cliMsg); err != nil {
+				return err
+			}
+			return nil
+		}
+
 		// Get the file from the local dir in batches
 		localFilePath := filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
 		file, err := os.Open(localFilePath)
@@ -117,7 +137,11 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 				FileContent: buffer[:numBytes],
 			}
 
-			if err := stream.Send(&fileContent); err != nil {
+			cliMsg := pc.ClientMessage{
+				Type:     pc.ClientMessage_FileRead,
+				FileBody: &fileContent,
+			}
+			if err := stream.Send(&cliMsg); err != nil {
 				return err
 			}
 		}
@@ -125,47 +149,63 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 		return nil
 	} else {
 		// Return an invalid lock error
-		fileContent := pc.FileBodyMessage{
-			Type: pc.FileBodyMessage_InvalidLock,
+		cliMsg := pc.ClientMessage{
+			Type: pc.ClientMessage_InvalidLock,
 		}
-		if err := stream.Send(&fileContent); err != nil {
+		if err := stream.Send(&cliMsg); err != nil {
 			return err
 		}
 		return nil
 	}
-
 }
 
-// Receive a stream of write messages from the client.
+// Receive a stream of write messages from the client or from the master for replication.
 func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequestServer) error {
 	var writeRequestMessage *pc.ClientMessage
 
-	// This is the first message from the client that should
-	// contain a valid write lock.
 	writeRequestMessage, err := stream.Recv()
 	if err != nil {
 		return err
 	}
-
-	// Validate write lock
-	// TODO(Hannah): change to appropriate function
-	if n.validateWriteLock() {
-		n.writeToLocalFile(writeRequestMessage, true)
-
-		// Keep listening for more messages from the client in case
-		// the file is very big.
-		for {
-			writeRequestMessage, err = stream.Recv()
-			if err == io.EOF {
-				return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_FileWrite})
-			}
-			if err != nil {
-				return err
-			}
-
-			n.writeToLocalFile(writeRequestMessage, false)
-		}
-	} else {
-		return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_InvalidLock})
+	if writeRequestMessage.Type == pc.ClientMessage_FileWrite {
+		return n.handleClientWriteRequest(stream, writeRequestMessage)
+	} else if writeRequestMessage.Type == pc.ClientMessage_ReplicaWrites {
+		return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
 	}
+	return nil
+}
+
+func (n *Node) getRedirectionCliMsg(clientId int32) *pc.ClientMessage {
+	return &pc.ClientMessage{
+		ClientID:      clientId,
+		Type:          pc.ClientMessage_RedirectToCoordinator,
+		Spare:         int32(n.idOfMaster),
+		ClientAddress: n.getPeerRecord(n.idOfMaster, true),
+	}
+}
+
+// EstablishReplicaConsensus is used to handle messages recieved from the master
+// to the replicas. This is used to attempt to ensure consensus.
+// Note: Write Requests are not processed here due to streaming
+func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.ServerMessage) (*pc.ServerMessage, error) {
+	fmt.Printf("Replica %d receiving message from master:%s\n", n.myPRecord.Id, serverMsg.Type)
+
+	switch serverMsg.Type {
+	// TODO: YH create the functions this case will use, feel free to change the serverMsg Type
+	case pc.ServerMessage_ReqLock, pc.ServerMessage_ReadLock, pc.ServerMessage_WriteLock:
+		// Find master
+		// Replies with master's address
+		return nil, nil
+	case pc.ServerMessage_ReplicaReadCheck:
+		return n.handleReadRequestFromMaster(serverMsg), nil
+
+	case pc.ServerMessage_SubscribeFileModification, pc.ServerMessage_SubscribeLockConflict,
+		pc.ServerMessage_SubscribeMasterFailover, pc.ServerMessage_SubscribeLockAquisition:
+		n.ReplicaClientSubscriptionsHandler(serverMsg)
+		return &pc.ServerMessage{Type: pc.ServerMessage_Ack}, nil
+	default:
+		fmt.Printf("> Replica requesting for something that is not available %s\n", serverMsg.Type)
+	}
+
+	return &pc.ServerMessage{Type: pc.ServerMessage_Error, StringMessages: "Request not available"}, nil
 }

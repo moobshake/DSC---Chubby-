@@ -10,13 +10,30 @@ import (
 )
 
 // This function publishes the event in which a specific file is modified.
-func (n *Node) PublishFileContentModification(modified_file string) {
+func (n *Node) PublishFileContentModification(modified_file string, clientException *pc.PeerRecord) {
 	// get all subscribed clients
 	clients, exist := n.eventClientTracker.file_content_modification_subscribers[modified_file]
 	if !exist || len(clients) == 0 {
 		fmt.Println("No Clients to Publish To")
 		return
 	}
+
+	// Do not send the event to the client that modified the file
+	if clientException != nil {
+		necessaryClients := make([]*pc.PeerRecord, 0)
+		for _, client := range clients {
+			if !(client.Address == clientException.Address && client.Port == clientException.Port) {
+				necessaryClients = append(necessaryClients, client)
+			}
+		}
+
+		if len(necessaryClients) == 0 {
+			fmt.Println("No Clients to Publish To")
+			return
+		}
+		clients = necessaryClients
+	}
+
 	go n.publishMessage(clients, pc.EventMessage_FileContentModified, modified_file)
 }
 

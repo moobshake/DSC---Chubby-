@@ -84,7 +84,7 @@ func (n *Node) SendControlMessage(ctx context.Context, cMsg *pc.ControlMessage) 
 	case pc.ControlMessage_PublishMasterFailover:
 		n.PublishMasterFailover()
 	case pc.ControlMessage_PublishFileModification:
-		n.PublishFileContentModification(cMsg.Comment)
+		n.PublishFileContentModification(cMsg.Comment, nil)
 	case pc.ControlMessage_PublishLockAquisition:
 		n.PublishLockAcquisition(cMsg.Comment)
 	case pc.ControlMessage_PublishLockConflict:

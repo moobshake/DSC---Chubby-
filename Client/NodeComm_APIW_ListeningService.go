@@ -13,6 +13,22 @@ import (
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 //<><><> Dispatch Methods - These methods SEND messages <><><>
 
+// Send a ClientMessage to the client's own listener
+func (c *Client) DispatchControlClientMessage(CliMsg *pc.ClientMessage) *pc.ClientMessage {
+	conn, err := connectTo(c.ClientAdd.IP, c.ClientAdd.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+	}
+	defer conn.Close()
+
+	cConn := pc.NewClientListeningServiceClient(conn)
+	response, err := cConn.SendClientMessage(context.Background(), CliMsg)
+	if err != nil {
+		fmt.Println("Error dispatching client control message:", err)
+	}
+	return response
+}
+
 //DispatchClientMessage sends a client message
 func (c *Client) DispatchClientMessage(destPRec *pc.PeerRecord, CliMsg *pc.ClientMessage) *pc.ClientMessage {
 	if destPRec == nil {
@@ -33,9 +49,6 @@ func (c *Client) DispatchClientMessage(destPRec *pc.PeerRecord, CliMsg *pc.Clien
 	return response
 }
 
-//Msg from Jia Wei: Does the DispatchReadRequest need to return something for methods that call it to use it?
-//Or does the way the locks work mean that just a simple call with no return is necessary?
-
 // DispatchReadRequest sends a read request to the server.
 // The server streams back the file content if the client has a valid lock.
 // Returns if the read request was successful
@@ -43,6 +56,11 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 	fmt.Printf("Client %d creating Read Request\n", c.ClientID)
 
 	readLock := c.getValidLocalReadLock(readFileName)
+
+	if readLock.Sequencer == "" {
+		fmt.Println("Cannot get lock. Try again.")
+		return
+	}
 
 	cliMsg := pc.ClientMessage{
 		ClientID: int32(c.ClientID),
@@ -65,28 +83,50 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 
 	if err != nil {
 		fmt.Println("DispatchReadRequest: ERROR", err)
+		// Try to find a new master
+		c.FindMaster()
+		c.DispatchReadRequest(readFileName)
+		return
 	}
 
 	// Always truncate the cache file first
 	truncateFile := true
 
 	for {
-		fileContent, err := stream.Recv()
+		cliMsg, err := stream.Recv()
+
 		if err == io.EOF {
 			// Stream has ended
 			break
 		}
 		if err != nil {
 			fmt.Println("DispatchReadRequest: ERROR", err)
+			break
 		}
+
+		if cliMsg.Type == pc.ClientMessage_RedirectToCoordinator {
+			c.HandleMasterRediction(cliMsg)
+			c.DispatchReadRequest(readFileName)
+			break
+		}
+
+		if cliMsg.Type == pc.ClientMessage_Error {
+			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
+			c.ClientCacheValidation[readFileName] = false
+			break
+		}
+
+		fileContent := cliMsg.FileBody
 
 		if fileContent.Type == pc.FileBodyMessage_Error {
 			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
+			c.ClientCacheValidation[readFileName] = false
 			break
 		}
 
 		if fileContent.Type == pc.FileBodyMessage_InvalidLock {
 			fmt.Println("Server sent back:", fileContent.Type)
+			c.ClientCacheValidation[readFileName] = false
 			break
 		}
 
@@ -94,6 +134,7 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 		// Append the rest of the content to the file
 		truncateFile = false
 		fmt.Println("Client received a successful read block")
+		c.ClientCacheValidation[readFileName] = true
 	}
 }
 
@@ -105,6 +146,11 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 // sending it to the server.
 func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile bool) {
 	writeLock := c.getValidLocalWriteLock(writeFileName)
+
+	if writeLock.Sequencer == "" {
+		fmt.Println("Cannot get lock. Try again.")
+		return
+	}
 
 	// create stream for message sending
 	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
@@ -119,6 +165,10 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	stream, err := cli.SendWriteRequest(context.Background())
 	if err != nil {
 		fmt.Println("CLIENT FILE WRITE REQUEST ERROR:", err)
+		// Try to find a new master
+		c.FindMaster()
+		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+		return
 	}
 
 	// If we need to modify or create the file first, do this
@@ -131,7 +181,9 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	file, err := os.Open(cacheFilePath)
 	if err != nil {
 		fmt.Println("CLIENT FILE WRITE REQUEST ERROR:", err)
+		return
 	}
+
 	defer file.Close()
 
 	// Get the file from the cache dir in batches
@@ -164,6 +216,7 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 			StringMessages: writeFileName,
 			FileBody:       &fileContent,
 			Lock:           writeLock,
+			ClientAddress:  &pc.PeerRecord{Address: c.ClientAdd.IP, Port: c.ClientAdd.Port},
 		}
 
 		if err := stream.Send(&cliMsg); err != nil {
@@ -175,5 +228,19 @@ func (c *Client) sendClientWriteRequest(writeFileName string, shouldModifyFile b
 	if err != nil {
 		fmt.Println("CLIENT FILE WRITE REQUEST ERROR:", err)
 	}
+
 	fmt.Println("Client write request reply from server:", reply.Type)
+
+	if reply.Type == pc.ClientMessage_RedirectToCoordinator {
+		c.HandleMasterRediction(reply)
+		c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+	} else if reply.Type == pc.ClientMessage_InvalidLock {
+		fmt.Println("Client's Lock was invalid:", reply.Type, "TODO: idk try again????")
+	} else if reply.Type == pc.ClientMessage_Error {
+		// A major error will be not enough replicas giving the OK to write
+		fmt.Println("Client's Write Request invalid, majority rejected:", reply.Type)
+
+		// // Uncomment to try again and hope for the best
+		// c.sendClientWriteRequest(writeFileName, false) // Do not modify the file again
+	}
 }
