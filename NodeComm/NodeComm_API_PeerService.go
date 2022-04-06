@@ -199,18 +199,15 @@ func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.Serv
 	return &pc.ServerMessage{Type: pc.ServerMessage_Error, StringMessages: "Request not available"}, nil
 }
 
-// Receive a stream of write messages from the client or from the master for replication.
+// Receive a stream of write messages from the master for replication.
 func (n *Node) SendWriteForward(stream pc.NodeCommPeerService_SendWriteForwardServer) error {
 	var writeRequestMessage *pc.ClientMessage
-
 	writeRequestMessage, err := stream.Recv()
 	if err != nil {
 		return err
 	}
-	if writeRequestMessage.Type == pc.ClientMessage_FileWrite {
-		return n.handleClientWriteRequest(stream, writeRequestMessage)
-	} else if writeRequestMessage.Type == pc.ClientMessage_ReplicaWrites {
-		return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
+	if writeRequestMessage.Type != pc.ClientMessage_ReplicaWrites {
+		return nil
 	}
-	return nil
+	return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
 }
