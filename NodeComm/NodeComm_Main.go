@@ -17,9 +17,9 @@ import (
 const (
 	LOCAL_ROOT_PATH = "."
 	// data{n} where n is the node ID eg data1
-	LOCAL_DATA_DIR_PREFIX = "data"
+	LOCAL_DATA_DIR_PREFIX = "data/data"
 	// lock{n} where n is the node ID eg lock1
-	LOCAL_LOCK_DIR_PREFIX = "lock"
+	LOCAL_LOCK_DIR_PREFIX = "lock/lock"
 )
 
 //Node is a logical structure for the bully node.
