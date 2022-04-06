@@ -6,7 +6,6 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -119,61 +118,28 @@ func (n *Node) DispatchCoordinationMessage(destPRec *pc.PeerRecord, nCoMsg *pc.C
 	return response
 }
 
-//Dispatch methods for SendWriteForward
-
-// Write requests should be acknowledged by the majority of replicas
-// DispatchWriteForward sends a stream of messages from the master to the replicas.
-// The replicas should save the file to their local copies and return an OK if they are done
-// Otherwise, send back an error.
-func (n *Node) DispatchWriteForward(writeMsgBuffer []*pc.ClientMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
-	// create stream for message sending
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
+// Sends a Server Message to a replica
+func (n *Node) DispatchServerMessage(destPRec *pc.PeerRecord, readCheckMsg *pc.ServerMessage) *pc.ServerMessage {
+	conn, err := connectTo(destPRec.Address, destPRec.Port)
 	if err != nil {
-		return
+		fmt.Println("Error connecting:", err)
+		return nil
 	}
-
 	defer conn.Close()
 
 	cli := pc.NewNodeCommPeerServiceClient(conn)
 
-	stream, err := cli.SendWriteForward(context.Background())
+	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), readCheckMsg)
+
 	if err != nil {
-		fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
-		return
+		fmt.Println("DispatchServerMessage: ERROR", err)
+		return nil
 	}
 
-	for _, cliWriteMsg := range writeMsgBuffer {
-		// Either the end of file or an error. Break.
-		if err != nil {
-			if err != io.EOF {
-				fmt.Println(err)
-			}
-			break
-		}
-
-		// The file content to embed in the request
-		cliWriteMsg.Type = pc.ClientMessage_ReplicaWrites
-
-		if err := stream.Send(cliWriteMsg); err != nil {
-			fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
-		}
-	}
-
-	reply, err := stream.CloseAndRecv()
-	if err != nil {
-		fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
-	}
-
-	if reply.Type == pc.ClientMessage_Ack {
-		replyChan <- true
-	} else {
-		replyChan <- false
-	}
-
-	fmt.Println("Master write to replica reply from replica:", reply.Type)
-
+	return replicaMsg
 }
 
+//JW: FIX THIS
 // DispatchFileToReplica sends a stream of messages to a replica.
 func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 	// create stream for message sending
@@ -237,100 +203,6 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 		}
 	}
 	stream.CloseAndRecv()
-}
-
-//Dispatch methods for EstablishReplicaConsensus
-// SendReadRequestToReplicasUtil sends a read confirmation messages from the master to the replicas.
-// The replicas send back a check sum
-// Otherwise, send back an error.
-func (n *Node) SendReadRequestToReplicasUtil(readCheckMsg *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool, expectedChecksum []byte) {
-
-	fmt.Printf("Master %d checking read request with replica %d\n", n.myPRecord.Id, peerRecord.Id)
-
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
-	if err != nil {
-		fmt.Println("Error connecting:", err)
-	}
-	defer conn.Close()
-
-	cli := pc.NewNodeCommPeerServiceClient(conn)
-
-	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), readCheckMsg)
-
-	if err != nil {
-		fmt.Println("SendReadRequestToReplicasUtil: ERROR", err)
-		replyChan <- false
-		return
-	}
-
-	if replicaMsg.Type != pc.ServerMessage_Ack {
-		fmt.Println("SendReadRequestToReplicasUtil: NOT OK", replicaMsg.Type)
-		replyChan <- false
-		return
-	}
-
-	fmt.Println(replicaMsg.FileBody.FileContent, expectedChecksum)
-	// Check checksum
-	if replicaMsg.Type == pc.ServerMessage_Ack && reflect.DeepEqual(replicaMsg.FileBody.FileContent, expectedChecksum) {
-		replyChan <- true
-	} else {
-		replyChan <- false
-	}
-
-	fmt.Println("Master read check to replica reply from replica:", replicaMsg.Type)
-
-}
-
-// SendSubRequestToReplicasUtil forwards the subscription request from the master to the replicas.
-// The replicas send back an OK.
-func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
-
-	fmt.Printf("Master %d send sub request %s to replica %d\n", n.myPRecord.Id, subMsg.Type, peerRecord.Id)
-
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
-	if err != nil {
-		fmt.Println("Error connecting:", err)
-	}
-	defer conn.Close()
-
-	cli := pc.NewNodeCommPeerServiceClient(conn)
-
-	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), subMsg)
-
-	if err != nil {
-		fmt.Println("SendSubRequestToReplicasUtil: ERROR", err)
-		replyChan <- false
-		return
-	}
-
-	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
-
-	fmt.Println("SendSubRequestToReplicasUtil reply from replica:", replicaMsg.Type)
-
-}
-
-// Forwards locks to Replicas
-// Replica adds lock to individual lock files
-// Node Lock path
-func (n *Node) SendReplicaLocksUtil(lock *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
-	fmt.Printf("Master %d sends locks to replica %d\n", n.myPRecord.Id, peerRecord.Id)
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
-	if err != nil {
-		fmt.Println("Error connecting:", err)
-	}
-	defer conn.Close()
-
-	cli := pc.NewNodeCommPeerServiceClient(conn)
-	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), lock)
-
-	if err != nil {
-		fmt.Println("SendReplicaLocksUtil: ERROR", err)
-		replyChan <- false
-		return
-	}
-
-	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
-	fmt.Println("Reply from Replicas regarding locks:", replicaMsg.Type)
 }
 
 //Convenience Dispatch methods - Should really be in another file

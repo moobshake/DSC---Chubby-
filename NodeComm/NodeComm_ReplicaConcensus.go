@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	pc "assignment1/main/protocchubby"
@@ -36,12 +37,10 @@ func (n *Node) SendRequestToReplicas(serverMessage *pc.ServerMessage) bool {
 			go n.SendSubRequestToReplicasUtil(serverMessage, peerRecord, replicaReplyChan)
 		}
 	// Client requested for lock
-	// TODO: YH add lock cases
 	case pc.ServerMessage_ReqLock:
 		for _, peerRecord := range n.peerRecords {
 			go n.SendReplicaLocksUtil(serverMessage, peerRecord, replicaReplyChan)
 		}
-
 	}
 
 	// Wait for all go-routines or timeout
@@ -76,7 +75,7 @@ func (n *Node) SendWriteRequestToReplicas(CliMsgBuffer []*pc.ClientMessage) bool
 	defer cancel()
 
 	for _, peerRecord := range n.peerRecords {
-		go n.DispatchWriteForward(CliMsgBuffer, peerRecord, replicaReplyChan)
+		go n.DispatchWriteRequestToReplicasUtil(CliMsgBuffer, peerRecord, replicaReplyChan)
 	}
 
 	// Wait for all go-routines or timeout
@@ -95,4 +94,70 @@ func (n *Node) SendWriteRequestToReplicas(CliMsgBuffer []*pc.ClientMessage) bool
 	num_majority := len(n.peerRecords)/2 + 1
 	fmt.Println("Num replicas:", len(n.peerRecords), "majority num:", num_majority, "num acks:", countAck)
 	return countAck >= num_majority
+}
+
+// SendReadRequestToReplicasUtil sends a read confirmation messages from the master to the replicas.
+// The replicas send back a check sum
+// Otherwise, send back an error.
+func (n *Node) SendReadRequestToReplicasUtil(readCheckMsg *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool, expectedChecksum []byte) {
+
+	fmt.Printf("Master %d checking read request with replica %d\n", n.myPRecord.Id, peerRecord.Id)
+
+	replicaMsg := n.DispatchServerMessage(peerRecord, readCheckMsg)
+
+	if replicaMsg == nil {
+		replyChan <- false
+		return
+	}
+
+	if replicaMsg.Type != pc.ServerMessage_Ack {
+		fmt.Println("SendReadRequestToReplicasUtil: NOT OK", replicaMsg.Type)
+		replyChan <- false
+		return
+	}
+
+	fmt.Println(replicaMsg.FileBody.FileContent, expectedChecksum)
+	// Check checksum
+	if replicaMsg.Type == pc.ServerMessage_Ack && reflect.DeepEqual(replicaMsg.FileBody.FileContent, expectedChecksum) {
+		replyChan <- true
+	} else {
+		replyChan <- false
+	}
+
+	fmt.Println("Master read check to replica reply from replica:", replicaMsg.Type)
+}
+
+// SendSubRequestToReplicasUtil forwards the subscription request from the master to the replicas.
+// The replicas send back an OK.
+func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+
+	fmt.Printf("Master %d send sub request %s to replica %d\n", n.myPRecord.Id, subMsg.Type, peerRecord.Id)
+
+	replicaMsg := n.DispatchServerMessage(peerRecord, subMsg)
+
+	if replicaMsg == nil {
+		replyChan <- false
+		return
+	}
+
+	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
+
+	fmt.Println("SendSubRequestToReplicasUtil reply from replica:", replicaMsg.Type)
+}
+
+// Forwards locks to Replicas
+// Replica adds lock to individual lock files
+// Node Lock path
+func (n *Node) SendReplicaLocksUtil(lock *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+	fmt.Printf("Master %d sends locks to replica %d\n", n.myPRecord.Id, peerRecord.Id)
+
+	replicaMsg := n.DispatchServerMessage(peerRecord, lock)
+
+	if replicaMsg == nil {
+		replyChan <- false
+		return
+	}
+
+	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
+	fmt.Println("Reply from Replicas regarding locks:", replicaMsg.Type)
 }
