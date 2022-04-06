@@ -115,6 +115,27 @@ func (n *Node) DispatchCoordinationMessage(destPRec *pc.PeerRecord, nCoMsg *pc.C
 	return response
 }
 
+// Sends a Server Message to a replica
+func (n *Node) DispatchServerMessage(destPRec *pc.PeerRecord, readCheckMsg *pc.ServerMessage) *pc.ServerMessage {
+	conn, err := connectTo(destPRec.Address, destPRec.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+		return nil
+	}
+	defer conn.Close()
+
+	cli := pc.NewNodeCommPeerServiceClient(conn)
+
+	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), readCheckMsg)
+
+	if err != nil {
+		fmt.Println("DispatchServerMessage: ERROR", err)
+		return nil
+	}
+
+	return replicaMsg
+}
+
 //Convenience Dispatch methods - Should really be in another file
 
 //BroadcastCoordinationMessage calls DispatchCoordinationMessage for all known peers
