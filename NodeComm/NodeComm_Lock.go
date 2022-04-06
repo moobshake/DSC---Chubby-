@@ -24,7 +24,21 @@ type Lock struct {
 
 // create lock directory
 func InitDirectory(path string, data bool) {
-	_, err := os.Stat(path)
+	_, err := os.Stat("./data")
+	if err != nil {
+		e := os.Mkdir("./data", 0755)
+		if e != nil {
+			log.Fatal(e)
+		}
+	}
+	_, err = os.Stat("./lock")
+	if err != nil {
+		e := os.Mkdir("./lock", 0755)
+		if e != nil {
+			log.Fatal(e)
+		}
+	}
+	_, err = os.Stat(path)
 	if err != nil {
 		e := os.Mkdir(path, 0755)
 		if e != nil {
