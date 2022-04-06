@@ -16,3 +16,5 @@ Available Commands:
 'exit':                 Exits the program.
 ```
 
+## Code Structure
+![](code_structure.jpg)
