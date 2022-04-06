@@ -37,8 +37,14 @@ func (n *Node) SendRequestToReplicas(serverMessage *pc.ServerMessage) bool {
 		for _, peerRecord := range n.peerRecords {
 			go n.SendSubRequestToReplicasUtil(serverMessage, peerRecord, replicaReplyChan)
 		}
-	}
+	// Client requested for lock
 	// TODO: YH add lock cases
+	case pc.ServerMessage_ReqLock:
+		for _, peerRecord := range n.peerRecords {
+			go n.SendReplicaLocksUtil(serverMessage, peerRecord, replicaReplyChan)
+		}
+
+	}
 
 	// Wait for all go-routines or timeout
 	for i := 0; i < len(n.peerRecords); i++ {
@@ -213,4 +219,28 @@ func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord
 
 	fmt.Println("SendSubRequestToReplicasUtil reply from replica:", replicaMsg.Type)
 
+}
+
+// Forwards locks to Replicas
+// Replica adds lock to individual lock files
+// Node Lock path
+func (n *Node) SendReplicaLocksUtil(lock *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+	fmt.Printf("Master %d sends locks to replica %d\n", n.myPRecord.Id, peerRecord.Id)
+	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+	}
+	defer conn.Close()
+
+	cli := pc.NewNodeCommPeerServiceClient(conn)
+	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), lock)
+
+	if err != nil {
+		fmt.Println("SendReplicaLocksUtil: ERROR", err)
+		replyChan <- false
+		return
+	}
+
+	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
+	fmt.Println("Reply from Replicas regarding locks:", replicaMsg.Type)
 }
