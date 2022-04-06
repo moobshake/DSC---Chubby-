@@ -182,7 +182,9 @@ func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.Serv
 	case pc.ServerMessage_ReqLock, pc.ServerMessage_ReadLock, pc.ServerMessage_WriteLock:
 		// Find master
 		// Replies with master's address
-		return nil, nil
+		// Function to handle saving locks by replica
+		return n.handleLockfromMaster(serverMsg), nil
+
 	case pc.ServerMessage_ReplicaReadCheck:
 		return n.handleReadRequestFromMaster(serverMsg), nil
 

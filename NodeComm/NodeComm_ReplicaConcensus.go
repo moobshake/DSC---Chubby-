@@ -35,8 +35,14 @@ func (n *Node) SendRequestToReplicas(serverMessage *pc.ServerMessage) bool {
 		for _, peerRecord := range n.peerRecords {
 			go n.SendSubRequestToReplicasUtil(serverMessage, peerRecord, replicaReplyChan)
 		}
-	}
+	// Client requested for lock
 	// TODO: YH add lock cases
+	case pc.ServerMessage_ReqLock:
+		for _, peerRecord := range n.peerRecords {
+			go n.SendReplicaLocksUtil(serverMessage, peerRecord, replicaReplyChan)
+		}
+
+	}
 
 	// Wait for all go-routines or timeout
 	for i := 0; i < len(n.peerRecords); i++ {

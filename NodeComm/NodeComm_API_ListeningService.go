@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -46,7 +47,6 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		f := list_files(n.nodeDataPath)
 		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_Ack, StringMessages: f}, nil
 
-	// TODO: Ask YH to change from stringmessages to the lock message
 	case pc.ClientMessage_WriteLock:
 		isAvail, seq, timestamp, lockdelay := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 20)
 		if isAvail {
@@ -54,9 +54,16 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		} else {
 			nodeReply = "NotAvail"
 		}
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply, Lock: &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}}, nil
+		// Send locks to replicas
+		l := &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}
 
-	// TODO: Ask YH to change from stringmessages to the lock message1
+		if !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_ReqLock, Lock: l, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
+			fmt.Printf("Forwarding write lock request from %d to replicas\n", CliMsg.ClientID)
+			return &pc.ClientMessage{Type: pc.ClientMessage_Error, StringMessages: "Majority of replicas do not agree on the read file."}, nil
+		}
+
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply, Lock: l}, nil
+
 	case pc.ClientMessage_ReadLock:
 		isAvail, seq, timestamp, lockdelay := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 20)
 		if isAvail {
@@ -64,7 +71,16 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		} else {
 			nodeReply = "NotAvail"
 		}
-		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply, Lock: &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}}, nil
+
+		l := &pc.LockMessage{Type: pc.LockMessage_ReadLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}
+
+		// Send locks to replicas
+		fmt.Printf("Forwarding read lock request from %d to replicas\n", CliMsg.ClientID)
+		if !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_ReqLock, Lock: l, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
+			return &pc.ClientMessage{Type: pc.ClientMessage_Error, StringMessages: "Majority of replicas do not agree on the read file."}, nil
+		}
+
+		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply, Lock: l}, nil
 	default:
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}
