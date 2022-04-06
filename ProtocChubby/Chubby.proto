@@ -32,6 +32,7 @@ message CoordinationMessage {
     MessageType Type = 3;
     string Comment = 4;
     repeated PeerRecord PeerRecords = 5;
+    repeated MirrorRecord MirrorRecords = 6;
     enum MessageType {
         Empty = 0;
         Ack = 1;
@@ -52,7 +53,15 @@ message CoordinationMessage {
         BadNodeReport = 112;
         NotMaster = 113;
         WakeUpAndJoinNetwork = 114;
+        ReqToMirror = 115;
+        MirrorRecord = 116;
+        ReqFile = 117;
     }
+}
+
+message MirrorRecord {
+    string FilePath = 1;
+    bytes CheckSum = 2;
 }
 
 //1 -> False; 2 -> True
@@ -120,6 +129,8 @@ message ParamsBody {
 message LockMessage {
     LockType Type = 1;
     string sequencer = 2;
+    string TimeStamp=3;
+    int32 LockDelay=4;
     enum LockType {
         Empty = 0;
         ReadLock = 1;
@@ -158,6 +169,10 @@ message ClientMessage {
         ReadLock = 114;
         WriteLock = 115;
         InvalidLock = 116;
+        ConfirmCoordinator = 117;
+        ReplicaWrites = 118;
+        ListLocks = 119;
+        ReplicaReadCheck = 120;
     }
 }
 
@@ -180,13 +195,35 @@ message FileBodyMessage {
 }
 
 message ServerMessage {
-    MessageType Type = 1;
+    MessageType Type =1;
+    int32 Checksum = 2;
+    FileBodyMessage FileBody = 3;
+    PeerRecord peerRecord = 4;
+    string StringMessages = 5;
+    LockMessage Lock = 6;
+
     enum MessageType {
         Empty = 0;
         Ack = 1;
         Warning = 2;
         Error = 3;
         NotInNetwork = 4;
+        FileWrite = 101;
+        FileRead = 102;
+        ReqLock = 103;
+        RelLock = 104;
+        SubscribeFileModification = 105;
+        SubscribeLockAquisition = 106;
+        SubscribeLockConflict = 107;
+        SubscribeMasterFailover = 108;
+        ListFile = 109;
+        ReadLock = 110;
+        WriteLock = 111;
+        InvalidLock = 112;
+        ReplicaWrites = 113;
+        ListLocks = 114;
+        ReplicaReadCheck = 115;
+        RedirectToCoordinator = 116;
     }
 }
 
@@ -219,12 +256,14 @@ service NodeCommPeerService {
     rpc KeepAlive(NodeMessage) returns (NodeMessage){}
     rpc SendMessage(NodeMessage) returns (NodeMessage) {}
     rpc SendCoordinationMessage(CoordinationMessage) returns (CoordinationMessage) {}
+    rpc EstablishReplicaConsensus(ServerMessage) returns (ServerMessage) {}
+    rpc SendWriteForward(stream ClientMessage) returns (ClientMessage) {}
 } 
 
 //ListeningService allows replicas to receive messages from clients
 service NodeCommListeningService {
     rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
-    rpc SendReadRequest(ClientMessage) returns (stream FileBodyMessage) {}
+    rpc SendReadRequest(ClientMessage) returns (stream ClientMessage) {}
     rpc SendWriteRequest(stream ClientMessage) returns (ClientMessage) {}
 }
 

@@ -144,6 +144,8 @@ type NodeCommPeerServiceClient interface {
 	KeepAlive(ctx context.Context, in *NodeMessage, opts ...grpc.CallOption) (*NodeMessage, error)
 	SendMessage(ctx context.Context, in *NodeMessage, opts ...grpc.CallOption) (*NodeMessage, error)
 	SendCoordinationMessage(ctx context.Context, in *CoordinationMessage, opts ...grpc.CallOption) (*CoordinationMessage, error)
+	EstablishReplicaConsensus(ctx context.Context, in *ServerMessage, opts ...grpc.CallOption) (*ServerMessage, error)
+	SendWriteForward(ctx context.Context, opts ...grpc.CallOption) (NodeCommPeerService_SendWriteForwardClient, error)
 }
 
 type nodeCommPeerServiceClient struct {
@@ -181,6 +183,49 @@ func (c *nodeCommPeerServiceClient) SendCoordinationMessage(ctx context.Context,
 	return out, nil
 }
 
+func (c *nodeCommPeerServiceClient) EstablishReplicaConsensus(ctx context.Context, in *ServerMessage, opts ...grpc.CallOption) (*ServerMessage, error) {
+	out := new(ServerMessage)
+	err := c.cc.Invoke(ctx, "/main.NodeCommPeerService/EstablishReplicaConsensus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeCommPeerServiceClient) SendWriteForward(ctx context.Context, opts ...grpc.CallOption) (NodeCommPeerService_SendWriteForwardClient, error) {
+	stream, err := c.cc.NewStream(ctx, &NodeCommPeerService_ServiceDesc.Streams[0], "/main.NodeCommPeerService/SendWriteForward", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &nodeCommPeerServiceSendWriteForwardClient{stream}
+	return x, nil
+}
+
+type NodeCommPeerService_SendWriteForwardClient interface {
+	Send(*ClientMessage) error
+	CloseAndRecv() (*ClientMessage, error)
+	grpc.ClientStream
+}
+
+type nodeCommPeerServiceSendWriteForwardClient struct {
+	grpc.ClientStream
+}
+
+func (x *nodeCommPeerServiceSendWriteForwardClient) Send(m *ClientMessage) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *nodeCommPeerServiceSendWriteForwardClient) CloseAndRecv() (*ClientMessage, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(ClientMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NodeCommPeerServiceServer is the server API for NodeCommPeerService service.
 // All implementations must embed UnimplementedNodeCommPeerServiceServer
 // for forward compatibility
@@ -188,6 +233,8 @@ type NodeCommPeerServiceServer interface {
 	KeepAlive(context.Context, *NodeMessage) (*NodeMessage, error)
 	SendMessage(context.Context, *NodeMessage) (*NodeMessage, error)
 	SendCoordinationMessage(context.Context, *CoordinationMessage) (*CoordinationMessage, error)
+	EstablishReplicaConsensus(context.Context, *ServerMessage) (*ServerMessage, error)
+	SendWriteForward(NodeCommPeerService_SendWriteForwardServer) error
 	mustEmbedUnimplementedNodeCommPeerServiceServer()
 }
 
@@ -203,6 +250,12 @@ func (UnimplementedNodeCommPeerServiceServer) SendMessage(context.Context, *Node
 }
 func (UnimplementedNodeCommPeerServiceServer) SendCoordinationMessage(context.Context, *CoordinationMessage) (*CoordinationMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendCoordinationMessage not implemented")
+}
+func (UnimplementedNodeCommPeerServiceServer) EstablishReplicaConsensus(context.Context, *ServerMessage) (*ServerMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EstablishReplicaConsensus not implemented")
+}
+func (UnimplementedNodeCommPeerServiceServer) SendWriteForward(NodeCommPeerService_SendWriteForwardServer) error {
+	return status.Errorf(codes.Unimplemented, "method SendWriteForward not implemented")
 }
 func (UnimplementedNodeCommPeerServiceServer) mustEmbedUnimplementedNodeCommPeerServiceServer() {}
 
@@ -271,6 +324,50 @@ func _NodeCommPeerService_SendCoordinationMessage_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeCommPeerService_EstablishReplicaConsensus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServerMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeCommPeerServiceServer).EstablishReplicaConsensus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/main.NodeCommPeerService/EstablishReplicaConsensus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeCommPeerServiceServer).EstablishReplicaConsensus(ctx, req.(*ServerMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeCommPeerService_SendWriteForward_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(NodeCommPeerServiceServer).SendWriteForward(&nodeCommPeerServiceSendWriteForwardServer{stream})
+}
+
+type NodeCommPeerService_SendWriteForwardServer interface {
+	SendAndClose(*ClientMessage) error
+	Recv() (*ClientMessage, error)
+	grpc.ServerStream
+}
+
+type nodeCommPeerServiceSendWriteForwardServer struct {
+	grpc.ServerStream
+}
+
+func (x *nodeCommPeerServiceSendWriteForwardServer) SendAndClose(m *ClientMessage) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *nodeCommPeerServiceSendWriteForwardServer) Recv() (*ClientMessage, error) {
+	m := new(ClientMessage)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NodeCommPeerService_ServiceDesc is the grpc.ServiceDesc for NodeCommPeerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -290,8 +387,18 @@ var NodeCommPeerService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "SendCoordinationMessage",
 			Handler:    _NodeCommPeerService_SendCoordinationMessage_Handler,
 		},
+		{
+			MethodName: "EstablishReplicaConsensus",
+			Handler:    _NodeCommPeerService_EstablishReplicaConsensus_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "SendWriteForward",
+			Handler:       _NodeCommPeerService_SendWriteForward_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "ProtocChubby/Chubby.proto",
 }
 
@@ -337,7 +444,7 @@ func (c *nodeCommListeningServiceClient) SendReadRequest(ctx context.Context, in
 }
 
 type NodeCommListeningService_SendReadRequestClient interface {
-	Recv() (*FileBodyMessage, error)
+	Recv() (*ClientMessage, error)
 	grpc.ClientStream
 }
 
@@ -345,8 +452,8 @@ type nodeCommListeningServiceSendReadRequestClient struct {
 	grpc.ClientStream
 }
 
-func (x *nodeCommListeningServiceSendReadRequestClient) Recv() (*FileBodyMessage, error) {
-	m := new(FileBodyMessage)
+func (x *nodeCommListeningServiceSendReadRequestClient) Recv() (*ClientMessage, error) {
+	m := new(ClientMessage)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -451,7 +558,7 @@ func _NodeCommListeningService_SendReadRequest_Handler(srv interface{}, stream g
 }
 
 type NodeCommListeningService_SendReadRequestServer interface {
-	Send(*FileBodyMessage) error
+	Send(*ClientMessage) error
 	grpc.ServerStream
 }
 
@@ -459,7 +566,7 @@ type nodeCommListeningServiceSendReadRequestServer struct {
 	grpc.ServerStream
 }
 
-func (x *nodeCommListeningServiceSendReadRequestServer) Send(m *FileBodyMessage) error {
+func (x *nodeCommListeningServiceSendReadRequestServer) Send(m *ClientMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 

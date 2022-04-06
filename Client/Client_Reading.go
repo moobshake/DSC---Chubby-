@@ -8,8 +8,6 @@ import (
 	pc "assignment1/main/protocchubby"
 )
 
-
-
 // This function appends the file information to the end of the file.
 // If truncateFile is true, the file is truncated to 0 first before appending the information.
 func (c *Client) writeToCache(fileContentMessage *pc.FileBodyMessage, truncateFile bool) {
@@ -57,10 +55,14 @@ func (c *Client) getValidLocalReadLock(readFileName string) *pc.LockMessage {
 
 	// a lock was sucessfully retrived, check type
 	if readLock, ok := c.Locks[readFileName]; ok {
-		if readLock.lockType == READ_CLI {
-			fmt.Println("Retrived read lock:", readLock.sequencer)
-			// convert valid lock to lock message
-			return &pc.LockMessage{Sequencer: readLock.sequencer}
+		// Reads can use both read and write locks
+		// check if lock has expired
+		if !c.isLockExpire(readFileName) {
+			if readLock.lockType == READ_CLI || readLock.lockType == WRITE_CLI {
+				fmt.Println("Retrived read lock:", readLock.sequencer)
+				// convert valid lock to lock message
+				return &pc.LockMessage{Sequencer: readLock.sequencer}
+			}
 		}
 	}
 

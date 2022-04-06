@@ -3,8 +3,12 @@ package nodecomm
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
+	"os"
+	"reflect"
 	"strconv"
+	"strings"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -113,6 +117,196 @@ func (n *Node) DispatchCoordinationMessage(destPRec *pc.PeerRecord, nCoMsg *pc.C
 	}
 
 	return response
+}
+
+//Dispatch methods for SendWriteForward
+
+// Write requests should be acknowledged by the majority of replicas
+// DispatchWriteForward sends a stream of messages from the master to the replicas.
+// The replicas should save the file to their local copies and return an OK if they are done
+// Otherwise, send back an error.
+func (n *Node) DispatchWriteForward(writeMsgBuffer []*pc.ClientMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+	// create stream for message sending
+	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
+	if err != nil {
+		return
+	}
+
+	defer conn.Close()
+
+	cli := pc.NewNodeCommPeerServiceClient(conn)
+
+	stream, err := cli.SendWriteForward(context.Background())
+	if err != nil {
+		fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
+		return
+	}
+
+	for _, cliWriteMsg := range writeMsgBuffer {
+		// Either the end of file or an error. Break.
+		if err != nil {
+			if err != io.EOF {
+				fmt.Println(err)
+			}
+			break
+		}
+
+		// The file content to embed in the request
+		cliWriteMsg.Type = pc.ClientMessage_ReplicaWrites
+
+		if err := stream.Send(cliWriteMsg); err != nil {
+			fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
+		}
+	}
+
+	reply, err := stream.CloseAndRecv()
+	if err != nil {
+		fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
+	}
+
+	if reply.Type == pc.ClientMessage_Ack {
+		replyChan <- true
+	} else {
+		replyChan <- false
+	}
+
+	fmt.Println("Master write to replica reply from replica:", reply.Type)
+
+}
+
+// DispatchFileToReplica sends a stream of messages to a replica.
+func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
+	// create stream for message sending
+	conn, err := connectTo(dPRec.Address, dPRec.Port)
+	if err != nil {
+		return
+	}
+
+	defer conn.Close()
+
+	cli := pc.NewNodeCommPeerServiceClient(conn)
+
+	stream, err := cli.SendWriteForward(context.Background())
+
+	// Retrive the file to send
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println("Error sending file to replica.", err)
+		return
+	}
+
+	defer file.Close()
+
+	// Get the file from the cache dir in batches
+	buffer := make([]byte, READ_MAX_BYTE_SIZE)
+
+	// All messages the client sends will have both the lock
+	// and the file to be modified.
+	for {
+		numBytes, err := file.Read(buffer)
+
+		// Either the end of file or an error. Break.
+		if err != nil {
+			if err != io.EOF {
+				fmt.Println(err)
+			}
+			break
+		}
+
+		tokenisedFilePath := strings.Split(filePath, "/")
+		fileName := tokenisedFilePath[len(tokenisedFilePath)-1]
+
+		// The file content to embed in the request
+		fileContent := pc.FileBodyMessage{
+			Type:        pc.FileBodyMessage_WriteMode,
+			FileName:    fileName,
+			FileContent: buffer[:numBytes],
+		}
+
+		cliMsg := pc.ClientMessage{
+			ClientID: int32(n.myPRecord.Id),
+			Type:     pc.ClientMessage_FileWrite,
+			// The name of the file to write
+			StringMessages: fileName,
+			FileBody:       &fileContent,
+			ClientAddress:  n.myPRecord,
+		}
+
+		if err := stream.Send(&cliMsg); err != nil {
+			fmt.Println("Error when Master tried to send file to replica:", err)
+		}
+	}
+	stream.CloseAndRecv()
+}
+
+//Dispatch methods for EstablishReplicaConsensus
+// SendReadRequestToReplicasUtil sends a read confirmation messages from the master to the replicas.
+// The replicas send back a check sum
+// Otherwise, send back an error.
+func (n *Node) SendReadRequestToReplicasUtil(readCheckMsg *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool, expectedChecksum []byte) {
+
+	fmt.Printf("Master %d checking read request with replica %d\n", n.myPRecord.Id, peerRecord.Id)
+
+	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+	}
+	defer conn.Close()
+
+	cli := pc.NewNodeCommPeerServiceClient(conn)
+
+	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), readCheckMsg)
+
+	if err != nil {
+		fmt.Println("SendReadRequestToReplicasUtil: ERROR", err)
+		replyChan <- false
+		return
+	}
+
+	if replicaMsg.Type != pc.ServerMessage_Ack {
+		fmt.Println("SendReadRequestToReplicasUtil: NOT OK", replicaMsg.Type)
+		replyChan <- false
+		return
+	}
+
+	fmt.Println(replicaMsg.FileBody.FileContent, expectedChecksum)
+	// Check checksum
+	if replicaMsg.Type == pc.ServerMessage_Ack && reflect.DeepEqual(replicaMsg.FileBody.FileContent, expectedChecksum) {
+		replyChan <- true
+	} else {
+		replyChan <- false
+	}
+
+	fmt.Println("Master read check to replica reply from replica:", replicaMsg.Type)
+
+}
+
+// SendSubRequestToReplicasUtil forwards the subscription request from the master to the replicas.
+// The replicas send back an OK.
+func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+
+	fmt.Printf("Master %d send sub request %s to replica %d\n", n.myPRecord.Id, subMsg.Type, peerRecord.Id)
+
+	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+	}
+	defer conn.Close()
+
+	cli := pc.NewNodeCommPeerServiceClient(conn)
+
+	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), subMsg)
+
+	if err != nil {
+		fmt.Println("SendSubRequestToReplicasUtil: ERROR", err)
+		replyChan <- false
+		return
+	}
+
+	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
+
+	fmt.Println("SendSubRequestToReplicasUtil reply from replica:", replicaMsg.Type)
+
 }
 
 //Convenience Dispatch methods - Should really be in another file

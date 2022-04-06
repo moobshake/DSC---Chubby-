@@ -2,17 +2,18 @@ package nodecomm
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	cp "github.com/otiai10/copy"
 )
 
 type LockValues struct {
 	Sequence  string
+	Timestamp time.Time
 	Lockdelay int
 }
 
@@ -89,11 +90,11 @@ func list_files(data_path string) string {
 
 // filename, mode (exclusive/shared), lock generation number
 func sequencerGenerator(filename string, mode string, lock_gen_num int) string {
-	return filename + ":" + mode + ":" + strconv.Itoa(lock_gen_num)
+	return filename + "," + mode + "," + strconv.Itoa(lock_gen_num)
 }
 
 // acquire write lock
-func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (bool, string) {
+func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (bool, string, string, int) {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		log.Fatal(err)
@@ -107,19 +108,20 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 
 	// if write/read lock is currently held
 	if len(l.Write) != 0 || len(l.Read) != 0 {
-		return false, ""
+		return false, "", "", 0
 	}
 
 	// max lock delay of 10 seconds
-	if lockdelay > 10 || lockdelay < 0 { // 10 second upper bound
-		return false, ""
+	if lockdelay > 100 || lockdelay < 0 { // 10 second upper bound
+		return false, "", "", 0
 	}
 
 	n.lockGenerationNumber++
+	ts := time.Now()
 	s := sequencerGenerator(filename, "exclusive", n.lockGenerationNumber)
 
-	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
-	fmt.Println(l.Write)
+	l.Write[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay, Timestamp: ts}
+
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
 		log.Fatal(err)
@@ -128,7 +130,7 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	if err != nil {
 		log.Fatal(err)
 	}
-	return true, s
+	return true, s, ts.String(), lockdelay
 }
 
 // release the write lock
@@ -157,7 +159,7 @@ func (n *Node) ReleaseWriteLock(filename string, client_id int) {
 }
 
 // acquire read lock
-func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (bool, string) {
+func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (bool, string, string, int) {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		log.Fatal(err)
@@ -171,17 +173,17 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 
 	// if write lock is current held, don't allow lock to be acquired
 	if len(l.Write) != 0 {
-		return false, ""
+		return false, "", "", 0
 	}
 
 	// TODO? add check if client already has write lock?
 	// then do what?
 
 	n.lockGenerationNumber++
-
+	ts := time.Now()
 	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber)
 
-	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay}
+	l.Read[client_id] = LockValues{Sequence: s, Lockdelay: lockdelay, Timestamp: ts}
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
@@ -192,7 +194,7 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 		log.Fatal(err)
 	}
 
-	return true, s
+	return true, s, ts.String(), lockdelay
 }
 
 // release read lock

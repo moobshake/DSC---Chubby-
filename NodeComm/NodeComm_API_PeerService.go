@@ -65,6 +65,7 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 			fmt.Println("This node has received a WAKEUP message from its coordinator.")
 			n.updatePeerRecords(coMsg.FromPRecord)
 			n.onlineNode()
+			n.DispatchCoordinationMessage(coMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
 		}
 		return &pc.CoordinationMessage{Type: pc.CoordinationMessage_Empty}, nil
 	}
@@ -99,6 +100,8 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 				nCoMsg.Type = pc.CoordinationMessage_NotMaster
 				nCoMsg.Spare = int32(n.idOfMaster)
 			}
+		case pc.CoordinationMessage_MirrorRecord:
+			n.MirrorSink(coMsg.MirrorRecords)
 		default:
 			nCoMsg.Comment = "Unsupported function."
 			nCoMsg.Type = pc.CoordinationMessage_Error
@@ -139,6 +142,12 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 				go n.DispatchCoordinationMessage(coMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_PeerInformation, PeerRecords: append(n.peerRecords, n.myPRecord)})
 			}
 			nCoMsg.Type = pc.CoordinationMessage_MessageType(pc.CoordinationMessage_Ack)
+		case pc.CoordinationMessage_ReqToMirror:
+			n.MirrorDispatcher(coMsg)
+			nCoMsg.Type = pc.CoordinationMessage_Ack
+		case pc.CoordinationMessage_ReqFile:
+			MRec := coMsg.MirrorRecords[0]
+			n.DispatchFileToReplica(coMsg.FromPRecord, MRec.FilePath)
 		default:
 			coMsg.Comment = "Unsupported operation."
 		}
@@ -160,4 +169,46 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 		}
 	}
 	return &nCoMsg, nil
+}
+
+// EstablishReplicaConsensus is used to handle messages recieved from the master
+// to the replicas. This is used to attempt to ensure consensus.
+// Note: Write Requests are not processed here due to streaming
+func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.ServerMessage) (*pc.ServerMessage, error) {
+	fmt.Printf("Replica %d receiving message from master:%s\n", n.myPRecord.Id, serverMsg.Type)
+
+	switch serverMsg.Type {
+	// TODO: YH create the functions this case will use, feel free to change the serverMsg Type
+	case pc.ServerMessage_ReqLock, pc.ServerMessage_ReadLock, pc.ServerMessage_WriteLock:
+		// Find master
+		// Replies with master's address
+		return nil, nil
+	case pc.ServerMessage_ReplicaReadCheck:
+		return n.handleReadRequestFromMaster(serverMsg), nil
+
+	case pc.ServerMessage_SubscribeFileModification, pc.ServerMessage_SubscribeLockConflict,
+		pc.ServerMessage_SubscribeMasterFailover, pc.ServerMessage_SubscribeLockAquisition:
+		n.ReplicaClientSubscriptionsHandler(serverMsg)
+		return &pc.ServerMessage{Type: pc.ServerMessage_Ack}, nil
+	default:
+		fmt.Printf("> Replica requesting for something that is not available %s\n", serverMsg.Type)
+	}
+
+	return &pc.ServerMessage{Type: pc.ServerMessage_Error, StringMessages: "Request not available"}, nil
+}
+
+// Receive a stream of write messages from the client or from the master for replication.
+func (n *Node) SendWriteForward(stream pc.NodeCommPeerService_SendWriteForwardServer) error {
+	var writeRequestMessage *pc.ClientMessage
+
+	writeRequestMessage, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	if writeRequestMessage.Type == pc.ClientMessage_FileWrite {
+		return n.handleClientWriteRequest(stream, writeRequestMessage)
+	} else if writeRequestMessage.Type == pc.ClientMessage_ReplicaWrites {
+		return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
+	}
+	return nil
 }

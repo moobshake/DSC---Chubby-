@@ -56,6 +56,7 @@ func (n *Node) DispatchEventMessage(clientRecord *pc.PeerRecord, eventType pc.Ev
 	response, err := c.SendEventMessage(context.Background(), &msg)
 	if err != nil {
 		fmt.Println("Error dispatching control message:", err)
+		return
 	}
 
 	if response.Type != pc.EventMessage_Ack {
@@ -68,7 +69,8 @@ func (n *Node) DispatchEventMessage(clientRecord *pc.PeerRecord, eventType pc.Ev
 // publishMessage sends  messages to all subscribed clients - kinda like broadcast
 func (n *Node) publishMessage(subscribed_clients []*pc.PeerRecord, eventType pc.EventMessage_MessageType, fileOrLockName string) {
 	for _, clientRecord := range subscribed_clients {
-		fmt.Println("TEST sending client", clientRecord.Address, clientRecord.Port, ": Event Type", eventType.String(), fileOrLockName)
+		fmt.Println("TEST sending client", clientRecord.Address, clientRecord.Port,
+			": Event Type", eventType, fileOrLockName)
 		n.DispatchEventMessage(clientRecord, eventType, fileOrLockName)
 	}
 }

@@ -33,6 +33,14 @@ type Client struct {
 	Action    int
 	// This is where the full file path to the client's cache
 	ClientCacheFilePath string
+
+	// Check if the file in cache is valid
+	// Valid means that to the client's knowledge,
+	// the cached file is the same as the master's
+	// The client will know if the file is invalid if
+	// the client subscribes to a master event.
+	// Key: file name, val: validity of file
+	ClientCacheValidation map[string]bool
 }
 
 // Methods to implement
@@ -45,11 +53,12 @@ type Client struct {
 func CreateClient(id int, ipAdd, port string) *Client {
 
 	c := Client{
-		ClientID:            id,
-		ClientAdd:           &lookupVal{IP: ipAdd, Port: port},
-		MasterAdd:           &pc.PeerRecord{},
-		Locks:               map[string]lock{},
-		ClientCacheFilePath: filepath.Join(CACHE_ROOT, CACHE_DIR_PREFIX+"_"+strconv.Itoa(id)),
+		ClientID:              id,
+		ClientAdd:             &lookupVal{IP: ipAdd, Port: port},
+		MasterAdd:             &pc.PeerRecord{},
+		Locks:                 map[string]lock{},
+		ClientCacheFilePath:   filepath.Join(CACHE_ROOT, CACHE_DIR_PREFIX+"_"+strconv.Itoa(id)),
+		ClientCacheValidation: make(map[string]bool),
 	}
 
 	return &c
@@ -61,6 +70,7 @@ func (c *Client) StartClient() {
 		return
 	}
 	go c.startClientListener()
+	go c.LockChecker()
 	time.Sleep(1 * time.Second)
 	c.startCLI()
 }
@@ -74,10 +84,18 @@ func (c *Client) startClientListener() {
 		log.Fatalf("Failed to hook into: %s. %v", fullAddress, err)
 	}
 
-	s := Client{}
+	clistener := Client{
+		ClientID:              c.ClientID,
+		ClientAdd:             &lookupVal{IP: c.ClientAdd.IP, Port: c.ClientAdd.Port},
+		MasterAdd:             c.MasterAdd,
+		Locks:                 map[string]lock{},
+		ClientCacheFilePath:   c.ClientCacheFilePath,
+		ClientCacheValidation: make(map[string]bool),
+	}
+
 	gServer := grpc.NewServer()
-	pc.RegisterClientControlServiceServer(gServer, &s)
-	pc.RegisterClientListeningServiceServer(gServer, &s)
+	pc.RegisterClientControlServiceServer(gServer, &clistener)
+	pc.RegisterClientListeningServiceServer(gServer, &clistener)
 
 	if err := gServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %s", err)
@@ -106,12 +124,17 @@ func (c *Client) FindMaster() bool {
 
 		fmt.Printf("Client %d sent master request to: %s:%s\n", c.ClientID, loc.IP, loc.Port)
 		res := c.DispatchClientMessage(&pr, &cm)
+		fmt.Println(res)
 		if res == nil {
-			fmt.Println("Client failed to connect to master.")
-		} else {
+			fmt.Println("Client failed to connect to Chubby replica", i)
+		} else if res.Type == pc.ClientMessage_ConfirmCoordinator {
 			c.MasterAdd.Address = loc.IP
 			c.MasterAdd.Port = loc.Port
 			fmt.Printf("Master Node Registered: %s:%s\n", loc.IP, loc.Port)
+			connected = true
+			return connected
+		} else if res.Type == pc.ClientMessage_RedirectToCoordinator {
+			c.HandleMasterRediction(res)
 			connected = true
 			return connected
 		}
@@ -128,4 +151,10 @@ func (c *Client) DummyFindMaster() bool {
 	c.MasterAdd.Port = masterPort
 	fmt.Printf("Master Node Registered: %s:%s\n", masterIP, masterPort)
 	return true
+}
+
+func (c *Client) HandleMasterRediction(redirectionMsg *pc.ClientMessage) {
+	c.MasterAdd.Address = redirectionMsg.ClientAddress.Address
+	c.MasterAdd.Port = redirectionMsg.ClientAddress.Port
+	fmt.Printf("Master Node Registered: %s:%s\n", c.MasterAdd.Address, c.MasterAdd.Port)
 }
