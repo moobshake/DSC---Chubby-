@@ -45,6 +45,8 @@ Main:
 			n.getStatus()
 		case "startElection":
 			n.startElection()
+		case "wakeUpNode":
+			n.wakeUpNode(tokenised)
 		case "publish":
 			n.publish(tokenised[1:])
 		case "help":
@@ -219,6 +221,15 @@ func (n *Node) configParams(params []string) {
 
 func (n *Node) startElection() {
 	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_StartElection})
+}
+
+func (n *Node) wakeUpNode(params []string) {
+	if len(params) < 2 {
+		fmt.Println("Invalid.")
+		return
+	}
+	id, _ := strconv.Atoi(params[1])
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_WakeUpNode, Spare: int32(id)})
 }
 
 func (n *Node) publish(args []string) {

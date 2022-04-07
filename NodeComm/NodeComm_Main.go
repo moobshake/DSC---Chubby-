@@ -66,7 +66,9 @@ func (n *Node) StartNode() {
 	pBody := pc.ParamsBody{MyPRecord: n.myPRecord, IdOfMaster: int32(n.idOfMaster), ElectionStatus: n.electionStatus, Verbose: int32(n.verbose), LockGenerationNumber: int32(n.lockGenerationNumber), NodeDataPath: n.nodeDataPath, NodeLockPath: n.nodeLockPath}
 	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_InitParams, ParamsBody: &pBody})
 	time.Sleep(time.Second * 1)
-	go n.LockChecker() // start lock checker service
+	go n.LockChecker()        // start lock checker service
+	go n.KeepAliveService(30) // start keep alie service
+	go n.MirrorService(60)    // start mirroring service (attempts to mirror every 60 seconds)
 	n.startCLI()
 }
 
