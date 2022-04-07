@@ -107,6 +107,7 @@ message ControlMessage {
         LeaveNetwork = 112;
         StartElection = 113;
         GetParams = 114;
+        WakeUpNode = 115;
         //Events
         PublishFileModification = 119;
         PublishLockAquisition = 120;
