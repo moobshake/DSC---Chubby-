@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"time"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -85,5 +86,12 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})
 			continue
 		}
+	}
+}
+
+func (n *Node) MirrorService(mirrorInterval int) {
+	for {
+		time.Sleep(time.Second * time.Duration(mirrorInterval))
+		n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
 	}
 }
