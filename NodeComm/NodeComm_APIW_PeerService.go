@@ -153,6 +153,11 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 
 	stream, err := cli.SendWriteForward(context.Background())
 
+	if err != nil {
+		fmt.Println("Error sending file to replica.", err)
+		return
+	}
+
 	// Retrive the file to send
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -188,16 +193,16 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 			FileContent: buffer[:numBytes],
 		}
 
-		cliMsg := pc.ClientMessage{
-			ClientID: int32(n.myPRecord.Id),
-			Type:     pc.ClientMessage_ReplicaWrites,
+		serverMsg := pc.ServerMessage{
+			// ClientID: int32(n.myPRecord.Id),
+			Type: pc.ServerMessage_ReplicaWrites,
 			// The name of the file to write
 			StringMessages: fileName,
 			FileBody:       &fileContent,
-			ClientAddress:  n.myPRecord,
+			PeerRecord:     n.myPRecord,
 		}
 
-		if err := stream.Send(&cliMsg); err != nil {
+		if err := stream.Send(&serverMsg); err != nil {
 			fmt.Println("Error when Master tried to send file to replica:", err)
 		}
 	}

@@ -16,17 +16,18 @@ import (
 // This function cannot be broken up further without overcomplicating things.
 func (n *Node) DispatchWriteRequestToReplicasUtil(writeMsgBuffer []*pc.ClientMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
 	// create stream for message sending
+	// create stream for message sending
 	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
 	if err != nil {
-		replyChan <- false
 		return
 	}
 
 	defer conn.Close()
 
-	cli := pc.NewNodeCommListeningServiceClient(conn)
+	cli := pc.NewNodeCommPeerServiceClient(conn)
 
-	stream, err := cli.SendWriteRequest(context.Background())
+	stream, err := cli.SendWriteForward(context.Background())
+
 	if err != nil {
 		replyChan <- false
 		return
@@ -34,9 +35,12 @@ func (n *Node) DispatchWriteRequestToReplicasUtil(writeMsgBuffer []*pc.ClientMes
 
 	for _, cliWriteMsg := range writeMsgBuffer {
 		// The file content to embed in the request
-		cliWriteMsg.Type = pc.ClientMessage_ReplicaWrites
+		serverMsg := pc.ServerMessage{
+			Type:     pc.ServerMessage_ReplicaWrites,
+			FileBody: cliWriteMsg.FileBody,
+		}
 
-		if err := stream.Send(cliWriteMsg); err != nil {
+		if err := stream.Send(&serverMsg); err != nil {
 			fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
 		}
 	}
@@ -48,7 +52,7 @@ func (n *Node) DispatchWriteRequestToReplicasUtil(writeMsgBuffer []*pc.ClientMes
 		return
 	}
 
-	replyChan <- reply.Type == pc.ClientMessage_Ack
+	replyChan <- reply.Type == pc.ServerMessage_Ack
 
 	fmt.Println("Master write to replica reply from replica:", reply.Type)
 }

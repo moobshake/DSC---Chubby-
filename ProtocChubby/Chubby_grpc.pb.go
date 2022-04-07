@@ -202,8 +202,8 @@ func (c *nodeCommPeerServiceClient) SendWriteForward(ctx context.Context, opts .
 }
 
 type NodeCommPeerService_SendWriteForwardClient interface {
-	Send(*ClientMessage) error
-	CloseAndRecv() (*ClientMessage, error)
+	Send(*ServerMessage) error
+	CloseAndRecv() (*ServerMessage, error)
 	grpc.ClientStream
 }
 
@@ -211,15 +211,15 @@ type nodeCommPeerServiceSendWriteForwardClient struct {
 	grpc.ClientStream
 }
 
-func (x *nodeCommPeerServiceSendWriteForwardClient) Send(m *ClientMessage) error {
+func (x *nodeCommPeerServiceSendWriteForwardClient) Send(m *ServerMessage) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *nodeCommPeerServiceSendWriteForwardClient) CloseAndRecv() (*ClientMessage, error) {
+func (x *nodeCommPeerServiceSendWriteForwardClient) CloseAndRecv() (*ServerMessage, error) {
 	if err := x.ClientStream.CloseSend(); err != nil {
 		return nil, err
 	}
-	m := new(ClientMessage)
+	m := new(ServerMessage)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -347,8 +347,8 @@ func _NodeCommPeerService_SendWriteForward_Handler(srv interface{}, stream grpc.
 }
 
 type NodeCommPeerService_SendWriteForwardServer interface {
-	SendAndClose(*ClientMessage) error
-	Recv() (*ClientMessage, error)
+	SendAndClose(*ServerMessage) error
+	Recv() (*ServerMessage, error)
 	grpc.ServerStream
 }
 
@@ -356,12 +356,12 @@ type nodeCommPeerServiceSendWriteForwardServer struct {
 	grpc.ServerStream
 }
 
-func (x *nodeCommPeerServiceSendWriteForwardServer) SendAndClose(m *ClientMessage) error {
+func (x *nodeCommPeerServiceSendWriteForwardServer) SendAndClose(m *ServerMessage) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *nodeCommPeerServiceSendWriteForwardServer) Recv() (*ClientMessage, error) {
-	m := new(ClientMessage)
+func (x *nodeCommPeerServiceSendWriteForwardServer) Recv() (*ServerMessage, error) {
+	m := new(ServerMessage)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}

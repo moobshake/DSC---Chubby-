@@ -63,6 +63,8 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 	if len(MRecs) == 0 {
 		return
 	}
+	fmt.Println("MirrorSink")
+
 	for _, MRecord := range MRecs {
 		_, err := os.Stat(MRecord.FilePath)
 		if err != nil || os.IsNotExist(err) {

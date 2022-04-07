@@ -185,9 +185,8 @@ func (n *Node) SendWriteRequest(stream pc.NodeCommListeningService_SendWriteRequ
 	}
 	if writeRequestMessage.Type == pc.ClientMessage_FileWrite {
 		return n.handleClientWriteRequest(stream, writeRequestMessage)
-	} else if writeRequestMessage.Type == pc.ClientMessage_ReplicaWrites {
-		return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
 	}
+
 	return nil
 }
 

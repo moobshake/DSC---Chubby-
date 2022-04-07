@@ -257,7 +257,7 @@ service NodeCommPeerService {
     rpc SendMessage(NodeMessage) returns (NodeMessage) {}
     rpc SendCoordinationMessage(CoordinationMessage) returns (CoordinationMessage) {}
     rpc EstablishReplicaConsensus(ServerMessage) returns (ServerMessage) {}
-    rpc SendWriteForward(stream ClientMessage) returns (ClientMessage) {}
+    rpc SendWriteForward(stream ServerMessage) returns (ServerMessage) {}
 } 
 
 //ListeningService allows replicas to receive messages from clients

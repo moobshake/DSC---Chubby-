@@ -49,16 +49,10 @@ func (n *Node) validateWriteLock(id int, sequencer string) bool {
 
 // This function appends the file information to the end of the file.
 // If truncateFile is true, the file is truncated to 0 first before appending the information.
-func (n *Node) writeToLocalFile(CliMsg *pc.ClientMessage, truncateFile bool, temp bool) {
-	fmt.Println("> server writing to file:", CliMsg.StringMessages, "for client", CliMsg.ClientID, " Temp:", temp)
+func (n *Node) writeToLocalFile(fileBody *pc.FileBodyMessage, fullFilePath string, truncateFile bool) {
+	fmt.Println("> server writing to file:")
 
 	var filePath string
-
-	if temp {
-		filePath = filepath.Join(n.nodeDataPath, TEMP_PREFIX+CliMsg.StringMessages)
-	} else {
-		filePath = filepath.Join(n.nodeDataPath, CliMsg.StringMessages)
-	}
 
 	// Open file
 	file, err := os.OpenFile(filePath,
@@ -77,7 +71,7 @@ func (n *Node) writeToLocalFile(CliMsg *pc.ClientMessage, truncateFile bool, tem
 	}
 
 	// write content
-	if _, err := file.Write(CliMsg.FileBody.FileContent); err != nil {
+	if _, err := file.Write(fileBody.FileContent); err != nil {
 		fmt.Println(err)
 	}
 }
@@ -131,7 +125,8 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 	// Validate write lock
 	// TODO(Hannah): change to appropriate function
 	if n.validateWriteLock(int(firstMessage.ClientID), firstMessage.Lock.Sequencer) {
-		n.writeToLocalFile(writeRequestMessage, true, true)
+		fullFilePath := filepath.Join(n.nodeDataPath, TEMP_PREFIX+writeRequestMessage.StringMessages)
+		n.writeToLocalFile(writeRequestMessage.FileBody, fullFilePath, true)
 
 		// Keep listening for more messages from the client in case
 		// the file is very big.
@@ -158,7 +153,7 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 				return err
 			}
 
-			n.writeToLocalFile(writeRequestMessage, false, true)
+			n.writeToLocalFile(writeRequestMessage.FileBody, fullFilePath, false)
 			writeRequestBuffers = append(writeRequestBuffers, writeRequestMessage)
 		}
 	} else {
@@ -166,12 +161,12 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 	}
 }
 
-func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommListeningService_SendWriteRequestServer, firstMessage *pc.ClientMessage) error {
+func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_SendWriteForwardServer, firstMessage *pc.ServerMessage) error {
 	// This is the first message from the client that should
 	// contain a valid write lock.
 	writeRequestMessage := firstMessage
-
-	n.writeToLocalFile(writeRequestMessage, true, false)
+	// fullFilePath := filepath.Join(n.nodeDataPath, writeRequestMessage.FileBody.FileName)
+	n.writeToLocalFile(writeRequestMessage.FileBody, writeRequestMessage.FileBody.FileName, true)
 
 	// Keep listening for more messages from the master in case
 	// the file is very big.
@@ -179,12 +174,12 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommListeningSer
 		writeRequestMessage, err := stream.Recv()
 		if err == io.EOF {
 			// Make sure that the majority of replicas give their OK to writing
-			return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_Ack})
+			return stream.SendAndClose(&pc.ServerMessage{Type: pc.ServerMessage_Ack})
 		}
 		if err != nil {
 			return err
 		}
-		n.writeToLocalFile(writeRequestMessage, false, false)
+		n.writeToLocalFile(writeRequestMessage.FileBody, writeRequestMessage.FileBody.FileName, false)
 	}
 
 }

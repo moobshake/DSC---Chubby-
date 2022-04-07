@@ -59,6 +59,7 @@ func (n *Node) SendMessage(ctx context.Context, inMsg *pc.NodeMessage) (*pc.Node
 func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.CoordinationMessage) (*pc.CoordinationMessage, error) {
 	if !n.isOnline {
 		if coMsg.Type == pc.CoordinationMessage_WakeUpAndJoinNetwork {
+			fmt.Println("Recieved:", coMsg.Type)
 			if n.idOfMaster != int(coMsg.FromPRecord.Id) {
 				return &pc.CoordinationMessage{Type: pc.CoordinationMessage_NotMaster}, nil
 			}
@@ -201,12 +202,12 @@ func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.Serv
 
 // Receive a stream of write messages from the master for replication.
 func (n *Node) SendWriteForward(stream pc.NodeCommPeerService_SendWriteForwardServer) error {
-	var writeRequestMessage *pc.ClientMessage
+	var writeRequestMessage *pc.ServerMessage
 	writeRequestMessage, err := stream.Recv()
 	if err != nil {
 		return err
 	}
-	if writeRequestMessage.Type != pc.ClientMessage_ReplicaWrites {
+	if writeRequestMessage.Type != pc.ServerMessage_ReplicaWrites {
 		return nil
 	}
 	return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)
