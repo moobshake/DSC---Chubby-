@@ -15,6 +15,7 @@ const (
 	READ_CLI       = "read"
 	WRITE_CLI      = "write"
 	REQ_LOCK       = "requestLock"
+	REL_LOCK       = "releaseLock"
 	SUB            = "sub"
 	LIST_FILE_CLI  = "ls"
 	LIST_LOCKS_CLI = "ll"
@@ -63,6 +64,12 @@ Main:
 				} else {
 					c.DispatchControlClientMessage(&pc.ClientMessage{Type: pc.ClientMessage_ReadLock, StringMessages: tokenised[2]})
 				}
+			}
+		case REL_LOCK:
+			if len(tokenised) < 2 {
+				fmt.Println("Invalid Use of Command. Requires File Name Input")
+			} else {
+				c.DispatchControlClientMessage(&pc.ClientMessage{Type: pc.ClientMessage_ReleaseLock, StringMessages: tokenised[1]})
 			}
 		case SUB:
 			// subscriptions can be done without the client listener
@@ -213,6 +220,31 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 			Type:     pc.ClientMessage_ListFile,
 		}
 		fmt.Printf("Client %d creating List File Request %s \n", c.ClientID, reqType)
+
+	case REL_LOCK:
+		// check if the lock exists
+		filename := additionalArgs[0]
+		if l, ok := c.Locks[filename]; ok {
+			fmt.Printf("Lock for %s found! Sending request to release lock", filename)
+
+			lt := pc.LockMessage_Empty
+			switch l.lockType {
+			case READ_CLI:
+				lt = pc.LockMessage_ReadLock
+			case WRITE_CLI:
+				lt = pc.LockMessage_WriteLock
+			}
+
+			cm = pc.ClientMessage{
+				ClientID: int32(c.ClientID),
+				Type:     pc.ClientMessage_ReleaseLock,
+				Lock:     &pc.LockMessage{Type: lt, Sequencer: l.sequencer, TimeStamp: l.timestamp.String(), LockDelay: int32(l.lockDelay)},
+			}
+		} else {
+			fmt.Printf("Lock does not exist for %s\n", filename)
+			return
+		}
+
 	}
 
 	res := c.DispatchClientMessage(c.MasterAdd, &cm)
@@ -223,6 +255,10 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 			c.RecvLock(res.Lock.Sequencer, "read", res.Lock.TimeStamp, int(res.Lock.LockDelay))
 		} else if res.Type == pc.ClientMessage_WriteLock {
 			c.RecvLock(res.StringMessages, "write", res.Lock.TimeStamp, int(res.Lock.LockDelay))
+		} else if res.Type == pc.ClientMessage_ReleaseLock {
+			fmt.Println("Releasing lock")
+			c.RelLock(res.StringMessages) // pass back only filename to release lock
+			fmt.Printf("Lock for %s is released\n", res.StringMessages)
 		}
 
 		fmt.Printf("Master replied: %d, Message: %d, %s\n", res.Type, res.Message, res.StringMessages)

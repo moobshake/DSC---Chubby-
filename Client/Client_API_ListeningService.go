@@ -24,6 +24,9 @@ func (c *Client) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage
 	case pc.ClientMessage_ReadLock:
 		c.ClientRequest(REQ_LOCK, READ_CLI, CliMsg.StringMessages)
 
+	case pc.ClientMessage_ReleaseLock:
+		c.ClientRequest(REL_LOCK, CliMsg.StringMessages)
+
 	case pc.ClientMessage_ListFile:
 		c.ClientRequest(LIST_FILE_CLI)
 	case pc.ClientMessage_ListLocks:
