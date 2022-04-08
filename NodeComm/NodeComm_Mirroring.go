@@ -94,6 +94,9 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 func (n *Node) MirrorService(mirrorInterval int) {
 	for {
 		time.Sleep(time.Second * time.Duration(mirrorInterval))
+		if n.IsMaster() {
+			continue
+		}
 		n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
 	}
 }

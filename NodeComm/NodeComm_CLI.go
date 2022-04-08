@@ -165,7 +165,7 @@ func (n *Node) delPeer(params []string) {
 }
 
 func (n *Node) getPeers() {
-	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_GetParams})
+	response := n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_GetPeers})
 	fmt.Println(response.ParamsBody.PeerRecords)
 }
 
@@ -224,12 +224,24 @@ func (n *Node) startElection() {
 }
 
 func (n *Node) wakeUpNode(params []string) {
-	if len(params) < 2 {
-		fmt.Println("Invalid.")
-		return
+	var nPRecs []*pc.PeerRecord
+	for i, param := range params {
+		if i == 0 {
+			continue
+		}
+		tokenised := strings.Split(param, ":")
+		if len(tokenised) != 2 {
+			continue
+		}
+		peerAddr := tokenised[0]
+		peerPort := tokenised[1]
+		nPRec := pc.PeerRecord{
+			Address: peerAddr,
+			Port:    peerPort,
+		}
+		nPRecs = append(nPRecs, &nPRec)
 	}
-	id, _ := strconv.Atoi(params[1])
-	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_WakeUpNode, Spare: int32(id)})
+	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_WakeUpNode, ParamsBody: &pc.ParamsBody{PeerRecords: nPRecs}})
 }
 
 func (n *Node) publish(args []string) {

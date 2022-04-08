@@ -7,6 +7,9 @@ import "time"
 func (n *Node) KeepAliveService(interval int) {
 	for {
 		time.Sleep(time.Second * time.Duration(interval))
+		if n.IsMaster() {
+			continue
+		}
 		keepAliveSuccess := n.DispatchKeepAlive(n.getPeerRecord(n.idOfMaster, false))
 		if !keepAliveSuccess { // Verify that coordinator is down
 			keepAliveSuccess = n.badNodeHandler(n.getPeerRecord(n.idOfMaster, false))
