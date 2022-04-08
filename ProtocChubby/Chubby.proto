@@ -221,10 +221,14 @@ message ServerMessage {
         ReadLock = 110;
         WriteLock = 111;
         InvalidLock = 112;
-        ReplicaWrites = 113;
-        ListLocks = 114;
-        ReplicaReadCheck = 115;
-        RedirectToCoordinator = 116;
+
+        // Replica Writes
+        ReplicaWriteData = 113;
+        ReplicaWriteLock = 114;
+
+        ListLocks = 115;
+        ReplicaReadCheck = 116;
+        RedirectToCoordinator = 117;
     }
 }
 

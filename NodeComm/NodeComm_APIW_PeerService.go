@@ -195,7 +195,8 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 
 		serverMsg := pc.ServerMessage{
 			// ClientID: int32(n.myPRecord.Id),
-			Type: pc.ServerMessage_ReplicaWrites,
+			// TODO: Check how i should specify the type
+			Type: pc.ServerMessage_ReplicaWriteData,
 			// The name of the file to write
 			StringMessages: fileName,
 			FileBody:       &fileContent,

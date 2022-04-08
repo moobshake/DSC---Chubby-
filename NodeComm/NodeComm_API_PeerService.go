@@ -207,7 +207,7 @@ func (n *Node) SendWriteForward(stream pc.NodeCommPeerService_SendWriteForwardSe
 	if err != nil {
 		return err
 	}
-	if writeRequestMessage.Type != pc.ServerMessage_ReplicaWrites {
+	if !(writeRequestMessage.Type == pc.ServerMessage_ReplicaWriteData || writeRequestMessage.Type == pc.ServerMessage_ReplicaWriteLock) {
 		return nil
 	}
 	return n.handleMasterToReplicatWriteRequest(stream, writeRequestMessage)

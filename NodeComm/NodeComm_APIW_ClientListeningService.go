@@ -36,7 +36,7 @@ func (n *Node) DispatchWriteRequestToReplicasUtil(writeMsgBuffer []*pc.ClientMes
 	for _, cliWriteMsg := range writeMsgBuffer {
 		// The file content to embed in the request
 		serverMsg := pc.ServerMessage{
-			Type:     pc.ServerMessage_ReplicaWrites,
+			Type:     pc.ServerMessage_ReplicaWriteData,
 			FileBody: cliWriteMsg.FileBody,
 		}
 

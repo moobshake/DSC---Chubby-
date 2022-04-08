@@ -27,6 +27,7 @@ func (n *Node) validateWriteLock(id int, sequencer string) bool {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
@@ -52,10 +53,8 @@ func (n *Node) validateWriteLock(id int, sequencer string) bool {
 func (n *Node) writeToLocalFile(fileBody *pc.FileBodyMessage, fullFilePath string, truncateFile bool) {
 	fmt.Println("> server writing to file:")
 
-	var filePath string
-
 	// Open file
-	file, err := os.OpenFile(filePath,
+	file, err := os.OpenFile(fullFilePath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("writeToLocalFile ERROR:", err)
@@ -64,7 +63,7 @@ func (n *Node) writeToLocalFile(fileBody *pc.FileBodyMessage, fullFilePath strin
 
 	// truncate if needed
 	if truncateFile {
-		err := os.Truncate(filePath, 0)
+		err := os.Truncate(fullFilePath, 0)
 		if err != nil {
 			fmt.Println("writeToLocalFile TRUNCATE ERROR:", err)
 		}
@@ -165,7 +164,14 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_
 	// This is the first message from the client that should
 	// contain a valid write lock.
 	writeRequestMessage := firstMessage
-	// fullFilePath := filepath.Join(n.nodeDataPath, writeRequestMessage.FileBody.FileName)
+
+	fullFilePath := ""
+	if writeRequestMessage.Type == pc.ServerMessage_ReplicaWriteData {
+		fullFilePath = filepath.Join(n.nodeDataPath, writeRequestMessage.FileBody.FileName)
+	} else {
+		fullFilePath = filepath.Join(n.nodeLockPath, writeRequestMessage.FileBody.FileName)
+	}
+
 	n.writeToLocalFile(writeRequestMessage.FileBody, writeRequestMessage.FileBody.FileName, true)
 
 	// Keep listening for more messages from the master in case
@@ -179,7 +185,7 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_
 		if err != nil {
 			return err
 		}
-		n.writeToLocalFile(writeRequestMessage.FileBody, writeRequestMessage.FileBody.FileName, false)
+		n.writeToLocalFile(writeRequestMessage.FileBody, fullFilePath, false)
 	}
 
 }
