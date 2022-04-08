@@ -3,7 +3,6 @@ package nodecomm
 import (
 	"context"
 	"fmt"
-	"io"
 	"path/filepath"
 	"reflect"
 	"time"
@@ -37,8 +36,12 @@ func (n *Node) SendRequestToReplicas(serverMessage *pc.ServerMessage) bool {
 		for _, peerRecord := range n.peerRecords {
 			go n.SendSubRequestToReplicasUtil(serverMessage, peerRecord, replicaReplyChan)
 		}
+	// Client requested for lock
+	case pc.ServerMessage_ReqLock:
+		for _, peerRecord := range n.peerRecords {
+			go n.SendReplicaLocksUtil(serverMessage, peerRecord, replicaReplyChan)
+		}
 	}
-	// TODO: YH add lock cases
 
 	// Wait for all go-routines or timeout
 	for i := 0; i < len(n.peerRecords); i++ {
@@ -72,7 +75,7 @@ func (n *Node) SendWriteRequestToReplicas(CliMsgBuffer []*pc.ClientMessage) bool
 	defer cancel()
 
 	for _, peerRecord := range n.peerRecords {
-		go n.SendWriteRequestToReplicasUtil(CliMsgBuffer, peerRecord, replicaReplyChan)
+		go n.DispatchWriteRequestToReplicasUtil(CliMsgBuffer, peerRecord, replicaReplyChan)
 	}
 
 	// Wait for all go-routines or timeout
@@ -93,59 +96,6 @@ func (n *Node) SendWriteRequestToReplicas(CliMsgBuffer []*pc.ClientMessage) bool
 	return countAck >= num_majority
 }
 
-// Write requests should be acknowledged by the majority of replicas
-// SendWriteRequestToReplicasUtil sends a stream of messages from the master to the replicas.
-// The replicas should save the file to their local copies and return an OK if they are done
-// Otherwise, send back an error.
-func (n *Node) SendWriteRequestToReplicasUtil(writeMsgBuffer []*pc.ClientMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
-	// create stream for message sending
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
-	if err != nil {
-		return
-	}
-
-	defer conn.Close()
-
-	cli := pc.NewNodeCommListeningServiceClient(conn)
-
-	stream, err := cli.SendWriteRequest(context.Background())
-	if err != nil {
-		fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
-		return
-	}
-
-	for _, cliWriteMsg := range writeMsgBuffer {
-		// Either the end of file or an error. Break.
-		if err != nil {
-			if err != io.EOF {
-				fmt.Println(err)
-			}
-			break
-		}
-
-		// The file content to embed in the request
-		cliWriteMsg.Type = pc.ClientMessage_ReplicaWrites
-
-		if err := stream.Send(cliWriteMsg); err != nil {
-			fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
-		}
-	}
-
-	reply, err := stream.CloseAndRecv()
-	if err != nil {
-		fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
-	}
-
-	if reply.Type == pc.ClientMessage_Ack {
-		replyChan <- true
-	} else {
-		replyChan <- false
-	}
-
-	fmt.Println("Master write to replica reply from replica:", reply.Type)
-
-}
-
 // SendReadRequestToReplicasUtil sends a read confirmation messages from the master to the replicas.
 // The replicas send back a check sum
 // Otherwise, send back an error.
@@ -153,18 +103,9 @@ func (n *Node) SendReadRequestToReplicasUtil(readCheckMsg *pc.ServerMessage, pee
 
 	fmt.Printf("Master %d checking read request with replica %d\n", n.myPRecord.Id, peerRecord.Id)
 
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
-	if err != nil {
-		fmt.Println("Error connecting:", err)
-	}
-	defer conn.Close()
+	replicaMsg := n.DispatchServerMessage(peerRecord, readCheckMsg)
 
-	cli := pc.NewNodeCommPeerServiceClient(conn)
-
-	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), readCheckMsg)
-
-	if err != nil {
-		fmt.Println("SendReadRequestToReplicasUtil: ERROR", err)
+	if replicaMsg == nil {
 		replyChan <- false
 		return
 	}
@@ -184,7 +125,6 @@ func (n *Node) SendReadRequestToReplicasUtil(readCheckMsg *pc.ServerMessage, pee
 	}
 
 	fmt.Println("Master read check to replica reply from replica:", replicaMsg.Type)
-
 }
 
 // SendSubRequestToReplicasUtil forwards the subscription request from the master to the replicas.
@@ -193,18 +133,9 @@ func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord
 
 	fmt.Printf("Master %d send sub request %s to replica %d\n", n.myPRecord.Id, subMsg.Type, peerRecord.Id)
 
-	conn, err := connectTo(peerRecord.Address, peerRecord.Port)
-	if err != nil {
-		fmt.Println("Error connecting:", err)
-	}
-	defer conn.Close()
+	replicaMsg := n.DispatchServerMessage(peerRecord, subMsg)
 
-	cli := pc.NewNodeCommPeerServiceClient(conn)
-
-	replicaMsg, err := cli.EstablishReplicaConsensus(context.Background(), subMsg)
-
-	if err != nil {
-		fmt.Println("SendSubRequestToReplicasUtil: ERROR", err)
+	if replicaMsg == nil {
 		replyChan <- false
 		return
 	}
@@ -212,5 +143,21 @@ func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord
 	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
 
 	fmt.Println("SendSubRequestToReplicasUtil reply from replica:", replicaMsg.Type)
+}
 
+// Forwards locks to Replicas
+// Replica adds lock to individual lock files
+// Node Lock path
+func (n *Node) SendReplicaLocksUtil(lock *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+	fmt.Printf("Master %d sends locks to replica %d\n", n.myPRecord.Id, peerRecord.Id)
+
+	replicaMsg := n.DispatchServerMessage(peerRecord, lock)
+
+	if replicaMsg == nil {
+		replyChan <- false
+		return
+	}
+
+	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
+	fmt.Println("Reply from Replicas regarding locks:", replicaMsg.Type)
 }
