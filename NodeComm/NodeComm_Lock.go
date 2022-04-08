@@ -106,12 +106,15 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		fmt.Println(err)
+		return false, "", "", 0
+
 	}
 
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
 		fmt.Println(err)
+		return false, "", "", 0
 	}
 
 	// if write/read lock is currently held
@@ -171,12 +174,16 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		fmt.Println(err)
+		return false, "", "", 0
+
 	}
 
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
 		fmt.Println(err)
+		return false, "", "", 0
+
 	}
 
 	// if write lock is current held, don't allow lock to be acquired

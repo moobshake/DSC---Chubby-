@@ -57,7 +57,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		// Send locks to replicas
 		l := &pc.LockMessage{Type: pc.LockMessage_WriteLock, Sequencer: nodeReply, TimeStamp: timestamp, LockDelay: int32(lockdelay)}
 
-		if !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_ReqLock, Lock: l, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
+		if isAvail && !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_ReqLock, Lock: l, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
 			fmt.Printf("Forwarding write lock request from %d to replicas\n", CliMsg.ClientID)
 			return &pc.ClientMessage{Type: pc.ClientMessage_Error, StringMessages: "Majority of replicas do not agree on the read file."}, nil
 		}
@@ -76,7 +76,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 
 		// Send locks to replicas
 		fmt.Printf("Forwarding read lock request from %d to replicas\n", CliMsg.ClientID)
-		if !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_ReqLock, Lock: l, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
+		if isAvail && !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_ReqLock, Lock: l, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
 			return &pc.ClientMessage{Type: pc.ClientMessage_Error, StringMessages: "Majority of replicas do not agree on the read file."}, nil
 		}
 
