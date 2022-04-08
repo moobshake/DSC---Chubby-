@@ -117,6 +117,7 @@ func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListe
 		file, err := os.Open(localFilePath)
 		if err != nil {
 			fmt.Println("CLIENT FILE READ REQUEST ERROR:", err)
+			return nil
 		}
 		defer file.Close()
 

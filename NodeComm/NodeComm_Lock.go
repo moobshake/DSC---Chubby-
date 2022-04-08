@@ -2,8 +2,8 @@ package nodecomm
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -23,32 +23,26 @@ type Lock struct {
 }
 
 // create lock directory
-func InitDirectory(path string, data bool) {
-	_, err := os.Stat("./data")
+func (n *Node) InitDirectory(path string, data bool) {
+
+	_, err := os.Stat(n.nodeRootPath)
 	if err != nil {
-		e := os.Mkdir("./data", 0755)
+		e := os.Mkdir(n.nodeRootPath, 0755)
 		if e != nil {
-			log.Fatal(e)
-		}
-	}
-	_, err = os.Stat("./lock")
-	if err != nil {
-		e := os.Mkdir("./lock", 0755)
-		if e != nil {
-			log.Fatal(e)
+			fmt.Println(e)
 		}
 	}
 	_, err = os.Stat(path)
 	if err != nil {
 		e := os.Mkdir(path, 0755)
 		if e != nil {
-			log.Fatal(e)
+			fmt.Println(e)
 		}
 	}
 	if data {
 		err = cp.Copy("sample_data", path)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 	}
 }
@@ -58,11 +52,11 @@ func initLockContent(file os.File) {
 	l := Lock{Write: make(map[int]LockValues), Read: make(map[int]LockValues)}
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	err = ioutil.WriteFile(file.Name(), data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 }
 
@@ -72,15 +66,15 @@ func createFile(path string, filename string, filetype string) {
 	initLockContent(*newfile)
 	defer newfile.Close()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 }
 
 // initialise lock files
-func InitLockFiles(lock_path string, data_path string) {
+func (n *Node) InitLockFiles(lock_path string, data_path string) {
 	files, err := ioutil.ReadDir(data_path + "/")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	for _, file := range files {
@@ -93,7 +87,7 @@ func InitLockFiles(lock_path string, data_path string) {
 func list_files(data_path string) string {
 	files, err := ioutil.ReadDir(data_path)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	f := ""
 	for _, file := range files {
@@ -111,13 +105,13 @@ func sequencerGenerator(filename string, mode string, lock_gen_num int) string {
 func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (bool, string, string, int) {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	// if write/read lock is currently held
@@ -138,11 +132,11 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	return true, s, ts.String(), lockdelay
 }
@@ -151,24 +145,24 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 func (n *Node) ReleaseWriteLock(filename string, client_id int) {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	delete(l.Write, client_id)
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 }
 
@@ -176,13 +170,13 @@ func (n *Node) ReleaseWriteLock(filename string, client_id int) {
 func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (bool, string, string, int) {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	// if write lock is current held, don't allow lock to be acquired
@@ -201,11 +195,11 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	return true, s, ts.String(), lockdelay
@@ -215,23 +209,23 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 func (n *Node) ReleaseReadLock(filename string, client_id int) {
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	l := Lock{}
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	delete(l.Read, client_id)
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 }

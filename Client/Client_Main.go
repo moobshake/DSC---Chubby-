@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -81,7 +80,7 @@ func (c *Client) startClientListener() {
 	fmt.Println("Starting listener at ", fullAddress)
 	lis, err := net.Listen("tcp", fullAddress)
 	if err != nil {
-		log.Fatalf("Failed to hook into: %s. %v", fullAddress, err)
+		fmt.Printf("Failed to hook into: %s. %v", fullAddress, err)
 	}
 
 	clistener := Client{
@@ -98,7 +97,7 @@ func (c *Client) startClientListener() {
 	pc.RegisterClientListeningServiceServer(gServer, &clistener)
 
 	if err := gServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %s", err)
+		fmt.Printf("Failed to serve: %s", err)
 	}
 }
 
