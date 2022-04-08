@@ -41,6 +41,12 @@ func (n *Node) SendRequestToReplicas(serverMessage *pc.ServerMessage) bool {
 		for _, peerRecord := range n.peerRecords {
 			go n.SendReplicaLocksUtil(serverMessage, peerRecord, replicaReplyChan)
 		}
+
+	// Client released lock
+	case pc.ServerMessage_RelLock:
+		for _, peerRecord := range n.peerRecords {
+			go n.sendReplicaLockRel(serverMessage, peerRecord, replicaReplyChan)
+		}
 	}
 
 	// Wait for all go-routines or timeout
@@ -151,6 +157,20 @@ func (n *Node) SendSubRequestToReplicasUtil(subMsg *pc.ServerMessage, peerRecord
 func (n *Node) SendReplicaLocksUtil(lock *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
 	fmt.Printf("Master %d sends locks to replica %d\n", n.myPRecord.Id, peerRecord.Id)
 
+	replicaMsg := n.DispatchServerMessage(peerRecord, lock)
+
+	if replicaMsg == nil {
+		replyChan <- false
+		return
+	}
+
+	replyChan <- replicaMsg.Type == pc.ServerMessage_Ack
+	fmt.Println("Reply from Replicas regarding locks:", replicaMsg.Type)
+}
+
+// Forward lock release
+func (n *Node) sendReplicaLockRel(lock *pc.ServerMessage, peerRecord *pc.PeerRecord, replyChan chan bool) {
+	fmt.Printf("Master %d sends lock release request to replica %d\n", n.myPRecord.Id, peerRecord.Id)
 	replicaMsg := n.DispatchServerMessage(peerRecord, lock)
 
 	if replicaMsg == nil {

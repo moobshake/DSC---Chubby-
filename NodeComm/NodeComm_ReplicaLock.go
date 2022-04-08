@@ -61,6 +61,21 @@ func (n *Node) handleLockfromMaster(serverMsg *pc.ServerMessage) *pc.ServerMessa
 	return &pc.ServerMessage{Type: pc.ServerMessage_Ack}
 }
 
+// Release lock
+func (n *Node) relLockfromMaster(serverMsg *pc.ServerMessage) *pc.ServerMessage {
+
+	clientId, _ := strconv.Atoi(serverMsg.StringMessages)
+	lType := serverMsg.Lock.Type
+	lSequencer := serverMsg.Lock.Sequencer
+	result := n.ReleaseLockChecker(clientId, lType, lSequencer)
+
+	if result == "error" {
+		return &pc.ServerMessage{Type: pc.ServerMessage_Error}
+	} else {
+		return &pc.ServerMessage{Type: pc.ServerMessage_Ack}
+	}
+}
+
 // convert string to time
 func convertTime(s string) time.Time {
 	layout := "2006-01-02 15:04:05.999999999 -0700 MST"
