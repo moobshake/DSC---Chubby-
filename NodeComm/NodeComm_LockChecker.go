@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
 	"time"
 )
@@ -24,18 +23,18 @@ func (n *Node) LockChecker() {
 func (n *Node) checkFiles(path string) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	for _, file := range files {
 		f, err := ioutil.ReadFile(path + "/" + file.Name())
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 		l := Lock{}
 		err = json.Unmarshal([]byte(f), &l)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 
 		// check if write/read lock is available

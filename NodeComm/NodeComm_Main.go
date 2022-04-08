@@ -2,7 +2,6 @@ package nodecomm
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -15,11 +14,12 @@ import (
 )
 
 const (
-	LOCAL_ROOT_PATH = "."
-	// data{n} where n is the node ID eg data1
-	LOCAL_DATA_DIR_PREFIX = "data/data"
-	// lock{n} where n is the node ID eg lock1
-	LOCAL_LOCK_DIR_PREFIX = "lock/lock"
+	LOCAL_ROOT_PATH           = "."
+	LOCAL_DATA_STORAGE_PREFIX = "storage"
+	// storage{n}/data is where all data for n is at
+	LOCAL_DATA_DIR_PREFIX = "data"
+	// storage{n}/lock is where all lock for n is at
+	LOCAL_LOCK_DIR_PREFIX = "lock"
 )
 
 //Node is a logical structure for the bully node.
@@ -36,6 +36,7 @@ type Node struct {
 	electionStatusLock   sync.Mutex
 	verbose              int
 	lockGenerationNumber int
+	nodeRootPath         string
 	nodeDataPath         string
 	nodeLockPath         string
 
@@ -50,19 +51,20 @@ func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 		electionStatus:       &pc.ElectionStatus{OngoingElection: 1, IsWinning: 1, Active: 1, TimeoutDuration: int32(3)},
 		verbose:              verbose,
 		lockGenerationNumber: 0,
-		nodeDataPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_DIR_PREFIX+strconv.Itoa(id)),
-		nodeLockPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_LOCK_DIR_PREFIX+strconv.Itoa(id)),
+		nodeRootPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_STORAGE_PREFIX+strconv.Itoa(id)),
+		nodeDataPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_STORAGE_PREFIX+strconv.Itoa(id), LOCAL_DATA_DIR_PREFIX),
+		nodeLockPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_STORAGE_PREFIX+strconv.Itoa(id), LOCAL_LOCK_DIR_PREFIX),
 	}
 
-	InitDirectory(n.nodeDataPath, true)
-	InitDirectory(n.nodeLockPath, false)
-	InitLockFiles(n.nodeLockPath, n.nodeDataPath)
+	n.InitDirectory(n.nodeDataPath, true)
+	n.InitDirectory(n.nodeLockPath, false)
+	n.InitLockFiles(n.nodeLockPath, n.nodeDataPath)
 	return &n
 }
 
 //StartNode starts the listener, initialises the params of the listener, and starts the UI.
 func (n *Node) StartNode() {
-	go n.startListener()
+	go n.startListener(n)
 	pBody := pc.ParamsBody{MyPRecord: n.myPRecord, IdOfMaster: int32(n.idOfMaster), ElectionStatus: n.electionStatus, Verbose: int32(n.verbose), LockGenerationNumber: int32(n.lockGenerationNumber), NodeDataPath: n.nodeDataPath, NodeLockPath: n.nodeLockPath}
 	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_InitParams, ParamsBody: &pBody})
 	time.Sleep(time.Second * 1)
@@ -71,7 +73,7 @@ func (n *Node) StartNode() {
 }
 
 //startListener starts a *grpc.serve server as a listener.
-func (n *Node) startListener() {
+func (n *Node) startListener(mainNode *Node) {
 	if n.idOfMaster == -1 {
 		fmt.Println("Unable to start without idOfMaster set!")
 		return
@@ -81,16 +83,16 @@ func (n *Node) startListener() {
 	fmt.Println("Master is node: ", n.idOfMaster)
 	lis, err := net.Listen("tcp", fullAddress)
 	if err != nil {
-		log.Fatalf("Failed to hook into: %s. %v", fullAddress, err)
+		fmt.Printf("Failed to hook into: %s. %v", fullAddress, err)
 	}
 
-	s := Node{}
+	s := CreateNode(int(n.myPRecord.Id), n.idOfMaster, n.myPRecord.Address, n.myPRecord.Port, n.verbose)
 	gServer := grpc.NewServer()
-	pc.RegisterNodeCommControlServiceServer(gServer, &s)
-	pc.RegisterNodeCommPeerServiceServer(gServer, &s)
-	pc.RegisterNodeCommListeningServiceServer(gServer, &s)
+	pc.RegisterNodeCommControlServiceServer(gServer, s)
+	pc.RegisterNodeCommPeerServiceServer(gServer, s)
+	pc.RegisterNodeCommListeningServiceServer(gServer, s)
 
 	if err := gServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %s", err)
+		fmt.Printf("Failed to serve: %s", err)
 	}
 }

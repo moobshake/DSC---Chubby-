@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 )
@@ -100,7 +99,7 @@ func convertTime(s string) time.Time {
 	layout := "2006-01-02 15:04:05.999999999 -0700 MST"
 	t, err := time.Parse(layout, strings.Split(s, " m=")[0])
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
 	}
 	return t
 }

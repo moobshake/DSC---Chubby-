@@ -5,31 +5,30 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	pc "assignment1/main/protocchubby"
 )
-
-const configLockFolderPath = "locks/"
-const configDataFolderPath = "data/"
 
 func (n *Node) MirrorDispatcher(msg *pc.CoordinationMessage) {
 	go n.MirrorSource(msg.FromPRecord)
 }
 
 func (n *Node) MirrorSource(dPRecord *pc.PeerRecord) {
-	lockFiles, err := os.Stat(configLockFolderPath)
+
+	lockFiles, err := os.Stat(n.nodeLockPath)
 	if err != nil {
 		fmt.Println("Unable to find or access locks folder. ", err)
 		return
 	}
-	dataFiles, err := os.Stat(configDataFolderPath)
+	dataFiles, err := os.Stat(n.nodeDataPath)
 	if err != nil {
 		fmt.Println("Unable to find or access data folder. ", err)
 		return
 	}
-	n.DispatchFolderRecords(dPRecord, configLockFolderPath, lockFiles)
-	n.DispatchFolderRecords(dPRecord, configDataFolderPath, dataFiles)
+	n.DispatchFolderRecords(dPRecord, n.nodeRootPath, lockFiles)
+	n.DispatchFolderRecords(dPRecord, n.nodeRootPath, dataFiles)
 }
 
 //SendFolderContents is a recursive function that dispatches mirror records for every file
@@ -47,11 +46,11 @@ func (n *Node) DispatchFolderRecords(dPRec *pc.PeerRecord, folderPath string, f 
 
 	for _, file := range filesInDir {
 		if file.IsDir() {
-			fPath := folderPath + f.Name() + "/"
+			fPath := filepath.Join(folderPath, f.Name())
 			n.DispatchFolderRecords(dPRec, fPath, f)
 		} else {
-			fileName := f.Name()
-			filePath := folderPath + fileName
+			fileName := file.Name()
+			filePath := filepath.Join(folderPath, fileName)
 			checksum := getFileChecksum(filePath)
 			nMirrorRecord := &pc.MirrorRecord{FilePath: filePath, CheckSum: checksum}
 			nMirrorRecords = append(nMirrorRecords, nMirrorRecord)

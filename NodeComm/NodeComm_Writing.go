@@ -50,8 +50,11 @@ func (n *Node) validateWriteLock(id int, sequencer string) bool {
 
 // This function appends the file information to the end of the file.
 // If truncateFile is true, the file is truncated to 0 first before appending the information.
-func (n *Node) writeToLocalFile(fileBody *pc.FileBodyMessage, fullFilePath string, truncateFile bool) {
+func (n *Node) writeToLocalFile(fileBody *pc.FileBodyMessage, truncateFile bool) {
 	fmt.Println("> server writing to file:")
+
+	fullFilePath := filepath.Join(n.nodeRootPath, fileBody.FileName)
+	fmt.Println("writeToLocalFile:", fileBody.FileName, fullFilePath, "root", n.nodeRootPath)
 
 	// Open file
 	file, err := os.OpenFile(fullFilePath,
@@ -124,8 +127,8 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 	// Validate write lock
 	// TODO(Hannah): change to appropriate function
 	if n.validateWriteLock(int(firstMessage.ClientID), firstMessage.Lock.Sequencer) {
-		fullFilePath := filepath.Join(n.nodeDataPath, TEMP_PREFIX+writeRequestMessage.StringMessages)
-		n.writeToLocalFile(writeRequestMessage.FileBody, fullFilePath, true)
+		writeRequestMessage.FileBody.FileName = filepath.Join(LOCAL_DATA_DIR_PREFIX, TEMP_PREFIX+writeRequestMessage.StringMessages)
+		n.writeToLocalFile(writeRequestMessage.FileBody, true)
 
 		// Keep listening for more messages from the client in case
 		// the file is very big.
@@ -152,7 +155,8 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 				return err
 			}
 
-			n.writeToLocalFile(writeRequestMessage.FileBody, fullFilePath, false)
+			writeRequestMessage.FileBody.FileName = filepath.Join(LOCAL_DATA_DIR_PREFIX, TEMP_PREFIX+writeRequestMessage.StringMessages)
+			n.writeToLocalFile(writeRequestMessage.FileBody, false)
 			writeRequestBuffers = append(writeRequestBuffers, writeRequestMessage)
 		}
 	} else {
@@ -165,14 +169,14 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_
 	// contain a valid write lock.
 	writeRequestMessage := firstMessage
 
-	fullFilePath := ""
-	if writeRequestMessage.Type == pc.ServerMessage_ReplicaWriteData {
-		fullFilePath = filepath.Join(n.nodeDataPath, writeRequestMessage.FileBody.FileName)
-	} else {
-		fullFilePath = filepath.Join(n.nodeLockPath, writeRequestMessage.FileBody.FileName)
-	}
+	// fullFilePath := ""
+	// if writeRequestMessage.Type == pc.ServerMessage_ReplicaWriteData {
+	// 	fullFilePath = filepath.Join(n.nodeDataPath, writeRequestMessage.FileBody.FileName)
+	// } else {
+	// 	fullFilePath = filepath.Join(n.nodeLockPath, writeRequestMessage.FileBody.FileName)
+	// }
 
-	n.writeToLocalFile(writeRequestMessage.FileBody, writeRequestMessage.FileBody.FileName, true)
+	n.writeToLocalFile(writeRequestMessage.FileBody, true)
 
 	// Keep listening for more messages from the master in case
 	// the file is very big.
@@ -185,7 +189,7 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_
 		if err != nil {
 			return err
 		}
-		n.writeToLocalFile(writeRequestMessage.FileBody, fullFilePath, false)
+		n.writeToLocalFile(writeRequestMessage.FileBody, false)
 	}
 
 }

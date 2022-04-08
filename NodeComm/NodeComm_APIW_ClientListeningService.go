@@ -4,6 +4,7 @@ import (
 	pc "assignment1/main/protocchubby"
 	"context"
 	"fmt"
+	"path/filepath"
 )
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -39,6 +40,7 @@ func (n *Node) DispatchWriteRequestToReplicasUtil(writeMsgBuffer []*pc.ClientMes
 			Type:     pc.ServerMessage_ReplicaWriteData,
 			FileBody: cliWriteMsg.FileBody,
 		}
+		serverMsg.FileBody.FileName = filepath.Join(LOCAL_DATA_DIR_PREFIX, cliWriteMsg.StringMessages)
 
 		if err := stream.Send(&serverMsg); err != nil {
 			fmt.Println("MASTER FILE WRITE REQUEST TO REPLICA ERROR:", err)
