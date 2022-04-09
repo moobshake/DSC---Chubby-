@@ -36,6 +36,7 @@ func (n *Node) MirrorSource(dPRecord *pc.PeerRecord) {
 //within a given directory recursively. Note: Empty folders will probably disappear.
 func (n *Node) DispatchFolderRecords(dPRec *pc.PeerRecord, folderPath string, f fs.FileInfo) {
 	filesInDir, err := ioutil.ReadDir(folderPath)
+
 	if err != nil {
 		fmt.Println("Unable to read file. ", err)
 		return
@@ -49,6 +50,8 @@ func (n *Node) DispatchFolderRecords(dPRec *pc.PeerRecord, folderPath string, f 
 		if file.IsDir() {
 			fPath := filepath.Join(folderPath, f.Name())
 			n.DispatchFolderRecords(dPRec, fPath, f)
+			// Return otherwise, this recursion will also send out the dispatch message.
+			return
 		} else {
 			fileName := file.Name()
 			filePath := filepath.Join(folderPath, fileName)
@@ -62,6 +65,7 @@ func (n *Node) DispatchFolderRecords(dPRec *pc.PeerRecord, folderPath string, f 
 			nMirrorRecords = append(nMirrorRecords, nMirrorRecord)
 		}
 	}
+
 	n.DispatchCoordinationMessage(dPRec, &pc.CoordinationMessage{Type: pc.CoordinationMessage_MirrorRecord, MirrorRecords: nMirrorRecords})
 }
 
