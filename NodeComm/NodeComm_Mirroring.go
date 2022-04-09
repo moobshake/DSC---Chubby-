@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	pc "assignment1/main/protocchubby"
@@ -52,7 +53,12 @@ func (n *Node) DispatchFolderRecords(dPRec *pc.PeerRecord, folderPath string, f 
 			fileName := file.Name()
 			filePath := filepath.Join(folderPath, fileName)
 			checksum := getFileChecksum(filePath)
-			nMirrorRecord := &pc.MirrorRecord{FilePath: filePath, CheckSum: checksum}
+
+			// Remove the first part of the directory as it is unique to the master
+			sharedFileNameSplit := strings.Split(filePath, "\\")[1:]
+			sharedFileName := strings.Join(sharedFileNameSplit, "\\")
+
+			nMirrorRecord := &pc.MirrorRecord{FilePath: sharedFileName, CheckSum: checksum}
 			nMirrorRecords = append(nMirrorRecords, nMirrorRecord)
 		}
 	}
@@ -66,22 +72,29 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 	fmt.Println("MirrorSink")
 
 	for _, MRecord := range MRecs {
-		_, err := os.Stat(MRecord.FilePath)
+		replicaFilePath := filepath.Join(n.nodeRootPath, MRecord.FilePath)
+		fmt.Println(replicaFilePath)
+
+		_, err := os.Stat(replicaFilePath)
 		if err != nil || os.IsNotExist(err) {
 			//File does not exist
 			MRecs := []*pc.MirrorRecord{MRecord}
+			fmt.Println("MirrorSink, not exist")
+
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})
 			continue
 		}
-		_, err = ioutil.ReadFile(MRecord.FilePath)
+		_, err = ioutil.ReadFile(replicaFilePath)
 		if err != nil {
 			//Error reading
 			MRecs := []*pc.MirrorRecord{MRecord}
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})
 			continue
 		}
-		checksum := getFileChecksum(MRecord.FilePath)
+		checksum := getFileChecksum(replicaFilePath)
 		if !checkFileSumSame(MRecord.CheckSum, checksum) {
+			fmt.Println("MirrorSink, checksum")
+
 			//File not same
 			MRecs := []*pc.MirrorRecord{MRecord}
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})

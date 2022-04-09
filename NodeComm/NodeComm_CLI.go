@@ -71,6 +71,7 @@ func printHelp(params []string) {
 		fmt.Println("'getStatus':\t Obtain information about the node.")
 		fmt.Println("'startElection':\t Used to manually trigger an election.")
 		fmt.Println("'publish':\t\tUsed to manually publish an update to subscribed clients.")
+		fmt.Println("'wakeUpNode [ADDR:PORT]':\t\tUsed to manually wake up another replica.")
 		fmt.Println("'help':\t Prints this menu.")
 		return
 	}

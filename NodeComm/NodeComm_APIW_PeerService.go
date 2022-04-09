@@ -6,8 +6,8 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -141,6 +141,9 @@ func (n *Node) DispatchServerMessage(destPRec *pc.PeerRecord, readCheckMsg *pc.S
 
 // DispatchFileToReplica sends a stream of messages to a replica.
 func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
+
+	fullFilePath := filepath.Join(n.nodeRootPath, filePath)
+
 	// create stream for message sending
 	conn, err := connectTo(dPRec.Address, dPRec.Port)
 	if err != nil {
@@ -159,7 +162,7 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 	}
 
 	// Retrive the file to send
-	file, err := os.Open(filePath)
+	file, err := os.Open(fullFilePath)
 	if err != nil {
 		fmt.Println("Error sending file to replica.", err)
 		return
@@ -183,13 +186,13 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 			break
 		}
 
-		tokenisedFilePath := strings.Split(filePath, "/")
-		fileName := tokenisedFilePath[len(tokenisedFilePath)-1]
+		// tokenisedFilePath := strings.Split(filePath, "/")
+		// fileName := tokenisedFilePath[len(tokenisedFilePath)-1]
 
 		// The file content to embed in the request
 		fileContent := pc.FileBodyMessage{
 			Type:        pc.FileBodyMessage_WriteMode,
-			FileName:    fileName,
+			FileName:    filePath,
 			FileContent: buffer[:numBytes],
 		}
 
@@ -198,7 +201,7 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 			// TODO: Check how i should specify the type
 			Type: pc.ServerMessage_ReplicaWriteData,
 			// The name of the file to write
-			StringMessages: fileName,
+			StringMessages: filePath,
 			FileBody:       &fileContent,
 			PeerRecord:     n.myPRecord,
 		}
