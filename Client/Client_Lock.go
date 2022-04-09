@@ -87,9 +87,11 @@ func (c *Client) RecvLock(sequencer string, lType string, timestamp string, lock
 
 // RelLock release Read Lock (Not implemented yet)
 func (c *Client) RelLock(filename string) {
-
-	// Release lock server
-
+	// handle if filename is error
+	if filename == "error" {
+		fmt.Println("Tried to release lock, but sequencer is not correct or lock does not exists.")
+		return
+	}
 	// Delete from Client
 	delete(c.Locks, filename)
 }

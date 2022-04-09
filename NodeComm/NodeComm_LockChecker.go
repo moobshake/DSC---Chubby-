@@ -1,6 +1,7 @@
 package nodecomm
 
 import (
+	pc "assignment1/main/protocchubby"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -69,4 +70,41 @@ func (n *Node) checkReadLock(l Lock, filename string) {
 			n.ReleaseReadLock(fn, i)
 		}
 	}
+}
+
+// Handles the releasing of locks
+// Returns file name
+func (n *Node) ReleaseLockChecker(clientId int, lType pc.LockMessage_LockType, lSequencer string) string {
+	// Check if lock is valid
+	filename := strings.Split(lSequencer, ",")[0]
+
+	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	l := Lock{}
+	err = json.Unmarshal([]byte(file), &l)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if lType == pc.LockMessage_ReadLock {
+		if readlock, ok := l.Read[clientId]; ok {
+			if readlock.Sequence == lSequencer {
+				fmt.Printf("Received request to release read lock for %s for client %d\n", filename, clientId)
+				n.ReleaseReadLock(filename, clientId)
+				return filename
+			}
+		}
+	} else if lType == pc.LockMessage_WriteLock {
+		if writelock, ok := l.Write[clientId]; ok {
+			if writelock.Sequence == lSequencer {
+				fmt.Printf("Received request to release write lock for %s for client %d\n", filename, clientId)
+				n.ReleaseWriteLock(filename, clientId)
+				return filename
+			}
+		}
+	}
+	return "error"
 }

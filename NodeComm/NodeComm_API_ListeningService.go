@@ -81,6 +81,16 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		}
 
 		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_ReadLock, StringMessages: nodeReply, Lock: l}, nil
+
+	case pc.ClientMessage_ReleaseLock:
+		// check if lock exist and should be released
+		message := n.ReleaseLockChecker(int(CliMsg.ClientID), CliMsg.Lock.Type, CliMsg.Lock.Sequencer)
+		if !n.SendRequestToReplicas(&pc.ServerMessage{Type: pc.ServerMessage_RelLock, Lock: CliMsg.Lock, StringMessages: strconv.Itoa(int(CliMsg.ClientID))}) {
+			return &pc.ClientMessage{Type: pc.ClientMessage_Error, StringMessages: "Majority of replicas do not agree to release lock"}, nil
+		}
+
+		return &pc.ClientMessage{Type: pc.ClientMessage_ReleaseLock, StringMessages: message}, nil
+
 	default:
 		fmt.Printf("> Client %d requesting for something that is not available %s\n", CliMsg.ClientID, CliMsg.Type.String())
 	}
