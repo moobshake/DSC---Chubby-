@@ -58,8 +58,15 @@ func (n *Node) DispatchFolderRecords(dPRec *pc.PeerRecord, folderPath string, f 
 			checksum := getFileChecksum(filePath)
 
 			// Remove the first part of the directory as it is unique to the master
-			sharedFileNameSplit := strings.Split(filePath, "\\")[1:]
-			sharedFileName := strings.Join(sharedFileNameSplit, "\\")
+			var sharedFileName string
+
+			if strings.Contains(filePath, "\\") {
+				sharedFileNameSplit := strings.Split(filePath, "\\")[1:]
+				sharedFileName = strings.Join(sharedFileNameSplit, "\\")
+			} else {
+				sharedFileNameSplit := strings.Split(filePath, "/")[1:]
+				sharedFileName = strings.Join(sharedFileNameSplit, "/")
+			}
 
 			nMirrorRecord := &pc.MirrorRecord{FilePath: sharedFileName, CheckSum: checksum}
 			nMirrorRecords = append(nMirrorRecords, nMirrorRecord)
