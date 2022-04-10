@@ -97,6 +97,8 @@ func printHelp(params []string) {
 		fmt.Printf("'%s SUB_TYPE':\t Sends a subscription request. Type help %s for more info.\n", SUB, SUB)
 		fmt.Printf("'%s':\t Lists the files available for the client\n", LIST_FILE_CLI)
 		fmt.Printf("'%s':\t Lists the locks available for the client\n", LIST_LOCKS_CLI)
+		fmt.Printf("'%s FILE_NAME':\t Release lock for FILE_NAME\n", REL_LOCK)
+		fmt.Printf("'%s LOCK_TYPE FILE_NAME':\t Requests lock with LOCK_TYPE (%s/%s)for FILE_NAME\n", REQ_LOCK, READ_CLI, WRITE_CLI)
 		return
 	}
 	switch params[1] {
