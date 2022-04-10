@@ -189,6 +189,9 @@ func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.Serv
 	case pc.ServerMessage_ReplicaReadCheck:
 		return n.handleReadRequestFromMaster(serverMsg), nil
 
+	case pc.ServerMessage_RelLock:
+		return n.relLockfromMaster(serverMsg), nil
+
 	case pc.ServerMessage_SubscribeFileModification, pc.ServerMessage_SubscribeLockConflict,
 		pc.ServerMessage_SubscribeMasterFailover, pc.ServerMessage_SubscribeLockAquisition:
 		n.ReplicaClientSubscriptionsHandler(serverMsg)
