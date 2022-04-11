@@ -69,8 +69,8 @@ func (c *Client) StartClient() {
 		return
 	}
 	go c.startClientListener()
-	go c.LockChecker()
 	time.Sleep(1 * time.Second)
+	c.DispatchControlClientMessage(&pc.ClientMessage{Type: pc.ClientMessage_Init})
 	c.startCLI()
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -47,21 +48,23 @@ func (c *Client) writeToCache(fileContentMessage *pc.FileBodyMessage, truncateFi
 // Returns a valid lock, otherwise, return an empty lock.
 // TODO(Hannah): Get valid read lock
 func (c *Client) getValidLocalReadLock(readFileName string) *pc.LockMessage {
-	// check if the client already has any lock for this file
-	if _, ok := c.Locks[readFileName]; !ok {
-		// Client does not currently have the lock, request for it.
+	lockStatus := c.isLockExpire(readFileName)
+	if lockStatus == 2 {
+		lock := c.Locks[readFileName]
+		if lock.lockType == READ_CLI || lock.lockType == WRITE_CLI {
+			fmt.Println("Retrived read lock:", lock.sequencer)
+			// convert valid lock to lock message
+			return &pc.LockMessage{Sequencer: lock.sequencer}
+		}
+	} else if lockStatus == 0 {
 		c.ClientRequest(REQ_LOCK, READ_CLI, readFileName)
-	}
-
-	// a lock was sucessfully retrived, check type
-	if readLock, ok := c.Locks[readFileName]; ok {
-		// Reads can use both read and write locks
-		// check if lock has expired
-		if !c.isLockExpire(readFileName) {
-			if readLock.lockType == READ_CLI || readLock.lockType == WRITE_CLI {
-				fmt.Println("Retrived read lock:", readLock.sequencer)
+		time.Sleep(time.Second * 1)
+		if c.isLockExpire(readFileName) == 2 {
+			lock := c.Locks[readFileName]
+			if lock.lockType == READ_CLI || lock.lockType == WRITE_CLI {
+				fmt.Println("Retrived read lock:", lock.sequencer)
 				// convert valid lock to lock message
-				return &pc.LockMessage{Sequencer: readLock.sequencer}
+				return &pc.LockMessage{Sequencer: lock.sequencer}
 			}
 		}
 	}

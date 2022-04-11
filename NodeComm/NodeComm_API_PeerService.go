@@ -65,8 +65,21 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 			}
 			fmt.Println("This node has received a WAKEUP message from its coordinator.")
 			n.updatePeerRecords(coMsg.FromPRecord)
+			//Quicky and dirty ID collision avoidance
+			for _, pRec := range n.peerRecords {
+				if pRec.Id == n.myPRecord.Id {
+					n.myPRecord.Id = int32(len(n.peerRecords) + 1)
+					break
+				}
+			}
 			n.onlineNode()
-			n.DispatchCoordinationMessage(coMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
+			response := n.DispatchCoordinationMessage(coMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
+			if response.Type == pc.CoordinationMessage_Ack {
+				return &pc.CoordinationMessage{Type: pc.CoordinationMessage_Ack}, nil
+			} else {
+				n.offlineNode()
+				return &pc.CoordinationMessage{Type: pc.CoordinationMessage_Empty}, nil
+			}
 		}
 		return &pc.CoordinationMessage{Type: pc.CoordinationMessage_Empty}, nil
 	}

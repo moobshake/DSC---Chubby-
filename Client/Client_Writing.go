@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	pc "assignment1/main/protocchubby"
 )
@@ -45,30 +46,26 @@ func (c *Client) modifyFileForDemo(writeFileName string) {
 // Returns a valid lock, otherwise, return an empty lock.
 // TODO(Hannah): Get valid write lock
 func (c *Client) getValidLocalWriteLock(writeFileName string) *pc.LockMessage {
-	// check if the client already has any lock for this file
-	if _, ok := c.Locks[writeFileName]; !ok {
-		// Client does not currently have the lock, request for it.
-		c.ClientRequest(REQ_LOCK, WRITE_CLI, writeFileName)
-	}
-
-	// a lock was sucessfully retrived, check type
-	if writeLock, ok := c.Locks[writeFileName]; ok {
-		// if client is holding read lock
-		if writeLock.lockType == READ_CLI {
-			//check if read lock is expired
-			if !c.isLockExpire(writeFileName) { // not expired
-				fmt.Println("Currently holding read lock")
-				return &pc.LockMessage{}
-			} else { // expired then request write lock
-				c.ClientRequest(REQ_LOCK, WRITE_CLI, writeFileName)
-			}
+	lockStatus := c.isLockExpire(writeFileName)
+	if lockStatus == 2 {
+		lock := c.Locks[writeFileName]
+		if lock.lockType == WRITE_CLI {
+			fmt.Println("Retrived write lock:", lock.sequencer)
+			// convert valid lock to lock message
+			return &pc.LockMessage{Sequencer: lock.sequencer}
+		} else if lock.lockType == READ_CLI {
+			fmt.Println("Currently holding read lock")
+			return &pc.LockMessage{}
 		}
-		if writeLock.lockType == WRITE_CLI {
-			// check if lock has expired
-			if !c.isLockExpire(writeFileName) {
-				fmt.Println("Retrived write lock:", writeLock.sequencer)
+	} else if lockStatus == 0 {
+		c.ClientRequest(REQ_LOCK, WRITE_CLI, writeFileName)
+		time.Sleep(time.Second * 1)
+		if c.isLockExpire(writeFileName) == 2 {
+			lock := c.Locks[writeFileName]
+			if lock.lockType == WRITE_CLI {
+				fmt.Println("Retrived write lock:", lock.sequencer)
 				// convert valid lock to lock message
-				return &pc.LockMessage{Sequencer: writeLock.sequencer}
+				return &pc.LockMessage{Sequencer: lock.sequencer}
 			}
 		}
 	}

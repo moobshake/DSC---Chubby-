@@ -40,6 +40,7 @@ Main:
 
 		switch tokenised[0] {
 		case EXIT_CLI:
+			//Note from JW: This is not a clean exit. Some stray goroutines survive.
 			break Main
 		case WRITE_CLI:
 			// Expect the file name to follow the read request token
@@ -215,6 +216,7 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 			ClientID:       int32(c.ClientID),
 			Type:           lockType,
 			StringMessages: additionalArgs[1],
+			Spare:          int32(120),
 		}
 	case LIST_FILE_CLI:
 		cm = pc.ClientMessage{
@@ -279,7 +281,7 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 func (c Client) ClientReadRequest(readFileName string) {
 	// Check if the file is valid in cache
 	// Darryl: also check if readLock has expired, if it is, send another request
-	if c.ClientCacheValidation[readFileName] && !c.isLockExpire(readFileName) {
+	if c.ClientCacheValidation[readFileName] && c.isLockExpire(readFileName) == 2 {
 		fmt.Println("> File", readFileName, "already exists in cache and is valid.")
 	} else {
 		// otherwise, request from master

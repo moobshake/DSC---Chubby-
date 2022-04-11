@@ -11,17 +11,24 @@ type lock struct {
 	lockType  string
 	sequencer string
 	timestamp time.Time
+	softDelay int
 	lockDelay int
 }
 
-func (c *Client) isLockExpire(filename string) bool {
-	timeDiff := time.Now().Sub(c.Locks[filename].timestamp).Seconds()
-	if int(timeDiff) >= c.Locks[filename].lockDelay {
-		fmt.Printf("%s lock expired for Client\n", c.Locks[filename].lockType)
-		c.RelLock(filename)
-		return true
+func (c *Client) isLockExpire(filename string) int { //0:expired, 1:softExpired: 2:present
+	if _, ok := c.Locks[filename]; !ok {
+		// Client does not currently have the lock
+		// It's probably been deleted by the LockChecker
+		fmt.Println("Lock for", filename, "is either expired or it was never obtained.")
+		return 0
 	}
-	return false
+	//Lock is present, check if it's locally expired.
+	timeDiff := time.Since(c.Locks[filename].timestamp).Seconds()
+	if int(timeDiff) >= c.Locks[filename].softDelay {
+		fmt.Println("This client does have the lock for", filename, "but it is locally expired.")
+		return 1
+	}
+	return 2
 }
 
 func (c *Client) LockChecker() {
@@ -36,8 +43,41 @@ func (c *Client) LockChecker() {
 }
 
 func (c *Client) checker() {
-	for i := range c.Locks {
-		fmt.Println(i)
+	if len(c.Locks) == 0 {
+		return
+	}
+	currentTime := time.Now()
+	//find hard and soft expired locks
+	var hardExpiredLocks []string
+	var expiringLocks []string
+	for lockName, lock := range c.Locks {
+		hardExpireTime := lock.timestamp.Add(time.Duration(lock.lockDelay * 1000000000))
+		hardExpireTimeLeft := hardExpireTime.Sub(currentTime)
+		if hardExpireTimeLeft.Seconds() < 0 {
+			hardExpiredLocks = append(hardExpiredLocks, lockName)
+			continue
+		}
+		softExpireTime := lock.timestamp.Add(time.Duration(lock.softDelay * 1000000000))
+		softExpireTimeLeft := softExpireTime.Sub(currentTime)
+		if softExpireTimeLeft.Seconds() < 5 {
+			expiringLocks = append(expiringLocks, lockName)
+		}
+	}
+	//Clean up expired locks
+	for _, expiredLock := range hardExpiredLocks {
+		delete(c.Locks, expiredLock)
+	}
+	//Renew softly expiring locks if possible
+	if c.DispatchClientKeepAlive() {
+		for _, lockName := range expiringLocks {
+			lock := c.Locks[lockName]
+			lock.softDelay += lock.softDelay
+			if lock.softDelay <= lock.lockDelay {
+				c.Locks[lockName] = lock
+			}
+		}
+	} else {
+		fmt.Println("This client has", len(expiringLocks), "softly expiring locks that cannot be renewed because the primary server is uncontactable.")
 	}
 }
 
@@ -69,6 +109,7 @@ func (c *Client) RecvLock(sequencer string, lType string, timestamp string, lock
 			lockType:  READ_CLI,
 			sequencer: sequencer,
 			timestamp: ts,
+			softDelay: 20,
 			lockDelay: lockdelay,
 		}
 	} else if lType == WRITE_CLI {
@@ -76,6 +117,7 @@ func (c *Client) RecvLock(sequencer string, lType string, timestamp string, lock
 			lockType:  WRITE_CLI,
 			sequencer: sequencer,
 			timestamp: ts,
+			softDelay: 20,
 			lockDelay: lockdelay,
 		}
 	}

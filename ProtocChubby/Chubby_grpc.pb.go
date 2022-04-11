@@ -406,6 +406,7 @@ var NodeCommPeerService_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NodeCommListeningServiceClient interface {
+	KeepAliveForClient(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error)
 	SendClientMessage(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error)
 	SendReadRequest(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (NodeCommListeningService_SendReadRequestClient, error)
 	SendWriteRequest(ctx context.Context, opts ...grpc.CallOption) (NodeCommListeningService_SendWriteRequestClient, error)
@@ -417,6 +418,15 @@ type nodeCommListeningServiceClient struct {
 
 func NewNodeCommListeningServiceClient(cc grpc.ClientConnInterface) NodeCommListeningServiceClient {
 	return &nodeCommListeningServiceClient{cc}
+}
+
+func (c *nodeCommListeningServiceClient) KeepAliveForClient(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error) {
+	out := new(ClientMessage)
+	err := c.cc.Invoke(ctx, "/main.NodeCommListeningService/KeepAliveForClient", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *nodeCommListeningServiceClient) SendClientMessage(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error) {
@@ -498,6 +508,7 @@ func (x *nodeCommListeningServiceSendWriteRequestClient) CloseAndRecv() (*Client
 // All implementations must embed UnimplementedNodeCommListeningServiceServer
 // for forward compatibility
 type NodeCommListeningServiceServer interface {
+	KeepAliveForClient(context.Context, *ClientMessage) (*ClientMessage, error)
 	SendClientMessage(context.Context, *ClientMessage) (*ClientMessage, error)
 	SendReadRequest(*ClientMessage, NodeCommListeningService_SendReadRequestServer) error
 	SendWriteRequest(NodeCommListeningService_SendWriteRequestServer) error
@@ -508,6 +519,9 @@ type NodeCommListeningServiceServer interface {
 type UnimplementedNodeCommListeningServiceServer struct {
 }
 
+func (UnimplementedNodeCommListeningServiceServer) KeepAliveForClient(context.Context, *ClientMessage) (*ClientMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method KeepAliveForClient not implemented")
+}
 func (UnimplementedNodeCommListeningServiceServer) SendClientMessage(context.Context, *ClientMessage) (*ClientMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendClientMessage not implemented")
 }
@@ -529,6 +543,24 @@ type UnsafeNodeCommListeningServiceServer interface {
 
 func RegisterNodeCommListeningServiceServer(s grpc.ServiceRegistrar, srv NodeCommListeningServiceServer) {
 	s.RegisterService(&NodeCommListeningService_ServiceDesc, srv)
+}
+
+func _NodeCommListeningService_KeepAliveForClient_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClientMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeCommListeningServiceServer).KeepAliveForClient(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/main.NodeCommListeningService/KeepAliveForClient",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeCommListeningServiceServer).KeepAliveForClient(ctx, req.(*ClientMessage))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _NodeCommListeningService_SendClientMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -604,6 +636,10 @@ var NodeCommListeningService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*NodeCommListeningServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "KeepAliveForClient",
+			Handler:    _NodeCommListeningService_KeepAliveForClient_Handler,
+		},
+		{
 			MethodName: "SendClientMessage",
 			Handler:    _NodeCommListeningService_SendClientMessage_Handler,
 		},
@@ -627,7 +663,7 @@ var NodeCommListeningService_ServiceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ClientControlServiceClient interface {
-	SendControlMessage(ctx context.Context, in *ControlMessage, opts ...grpc.CallOption) (*ControlMessage, error)
+	SendControlMessage(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error)
 	Shutdown(ctx context.Context, in *ControlMessage, opts ...grpc.CallOption) (*ControlMessage, error)
 }
 
@@ -639,8 +675,8 @@ func NewClientControlServiceClient(cc grpc.ClientConnInterface) ClientControlSer
 	return &clientControlServiceClient{cc}
 }
 
-func (c *clientControlServiceClient) SendControlMessage(ctx context.Context, in *ControlMessage, opts ...grpc.CallOption) (*ControlMessage, error) {
-	out := new(ControlMessage)
+func (c *clientControlServiceClient) SendControlMessage(ctx context.Context, in *ClientMessage, opts ...grpc.CallOption) (*ClientMessage, error) {
+	out := new(ClientMessage)
 	err := c.cc.Invoke(ctx, "/main.ClientControlService/SendControlMessage", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -661,7 +697,7 @@ func (c *clientControlServiceClient) Shutdown(ctx context.Context, in *ControlMe
 // All implementations must embed UnimplementedClientControlServiceServer
 // for forward compatibility
 type ClientControlServiceServer interface {
-	SendControlMessage(context.Context, *ControlMessage) (*ControlMessage, error)
+	SendControlMessage(context.Context, *ClientMessage) (*ClientMessage, error)
 	Shutdown(context.Context, *ControlMessage) (*ControlMessage, error)
 	mustEmbedUnimplementedClientControlServiceServer()
 }
@@ -670,7 +706,7 @@ type ClientControlServiceServer interface {
 type UnimplementedClientControlServiceServer struct {
 }
 
-func (UnimplementedClientControlServiceServer) SendControlMessage(context.Context, *ControlMessage) (*ControlMessage, error) {
+func (UnimplementedClientControlServiceServer) SendControlMessage(context.Context, *ClientMessage) (*ClientMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendControlMessage not implemented")
 }
 func (UnimplementedClientControlServiceServer) Shutdown(context.Context, *ControlMessage) (*ControlMessage, error) {
@@ -690,7 +726,7 @@ func RegisterClientControlServiceServer(s grpc.ServiceRegistrar, srv ClientContr
 }
 
 func _ClientControlService_SendControlMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ControlMessage)
+	in := new(ClientMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -702,7 +738,7 @@ func _ClientControlService_SendControlMessage_Handler(srv interface{}, ctx conte
 		FullMethod: "/main.ClientControlService/SendControlMessage",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClientControlServiceServer).SendControlMessage(ctx, req.(*ControlMessage))
+		return srv.(ClientControlServiceServer).SendControlMessage(ctx, req.(*ClientMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }

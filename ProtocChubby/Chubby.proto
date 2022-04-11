@@ -175,6 +175,8 @@ message ClientMessage {
         ListLocks = 119;
         ReplicaReadCheck = 120;
         ReleaseLock = 121;
+        Init = 122;
+        KeepAlive = 123;
     }
 }
 
@@ -268,6 +270,7 @@ service NodeCommPeerService {
 
 //ListeningService allows replicas to receive messages from clients
 service NodeCommListeningService {
+    rpc KeepAliveForClient(ClientMessage) returns (ClientMessage){}
     rpc SendClientMessage(ClientMessage) returns (ClientMessage){}
     rpc SendReadRequest(ClientMessage) returns (stream ClientMessage) {}
     rpc SendWriteRequest(stream ClientMessage) returns (ClientMessage) {}
@@ -276,7 +279,7 @@ service NodeCommListeningService {
 // <><><> Client Services <><><>
 //ControlService allows the client to receive commands from a UI
 service ClientControlService {
-    rpc SendControlMessage(ControlMessage) returns (ControlMessage){}
+    rpc SendControlMessage(ClientMessage) returns (ClientMessage){}
     rpc Shutdown(ControlMessage) returns (ControlMessage){}
 }
 

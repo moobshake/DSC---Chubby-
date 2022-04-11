@@ -13,6 +13,18 @@ import (
 
 //<><><> RPC Send Methods - These methods RECEIVE messages <><><>
 
+//KeepAlive - Used to check if a node is alive or not.
+func (n *Node) KeepAliveForClient(ctx context.Context, inMsg *pc.ClientMessage) (*pc.ClientMessage, error) {
+	switch inMsg.Type {
+	case pc.ClientMessage_KeepAlive:
+		nMsg := pc.ClientMessage{Type: pc.ClientMessage_Ack}
+		return &nMsg, nil
+	default:
+		//Received a non-keepalive message on the keepalive channel
+		return &pc.ClientMessage{Type: pc.ClientMessage_Empty}, nil
+	}
+}
+
 // SendClientMessage is a Channel for ClientMessages
 // Note: Read Requests are not processed here
 func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) (*pc.ClientMessage, error) {
@@ -48,7 +60,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_Ack, StringMessages: f}, nil
 
 	case pc.ClientMessage_WriteLock:
-		isAvail, seq, timestamp, lockdelay := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), 20)
+		isAvail, seq, timestamp, lockdelay := n.AcquireWriteLock(CliMsg.StringMessages, int(CliMsg.ClientID), int(CliMsg.Spare))
 		if isAvail {
 			nodeReply = seq
 		} else {
@@ -65,7 +77,7 @@ func (n *Node) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage) 
 		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_WriteLock, StringMessages: nodeReply, Lock: l}, nil
 
 	case pc.ClientMessage_ReadLock:
-		isAvail, seq, timestamp, lockdelay := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), 20)
+		isAvail, seq, timestamp, lockdelay := n.AcquireReadLock(CliMsg.StringMessages, int(CliMsg.ClientID), int(CliMsg.Spare))
 		if isAvail {
 			nodeReply = seq
 		} else {

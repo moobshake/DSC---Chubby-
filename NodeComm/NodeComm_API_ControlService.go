@@ -84,8 +84,10 @@ func (n *Node) SendControlMessage(ctx context.Context, cMsg *pc.ControlMessage) 
 
 	case pc.ControlMessage_WakeUpNode:
 		pRecords := cMsg.ParamsBody.PeerRecords
-		n.DispatchCoordinationMessage(pRecords[0], &pc.CoordinationMessage{Type: pc.CoordinationMessage_WakeUpAndJoinNetwork})
-
+		response := n.DispatchCoordinationMessage(pRecords[0], &pc.CoordinationMessage{Type: pc.CoordinationMessage_WakeUpAndJoinNetwork})
+		if response.Type == pc.CoordinationMessage_Ack {
+			n.updatePeerRecords(response.FromPRecord)
+		}
 	case pc.ControlMessage_PublishMasterFailover:
 		n.PublishMasterFailover()
 	case pc.ControlMessage_PublishFileModification:

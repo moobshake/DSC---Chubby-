@@ -13,20 +13,33 @@ import (
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 //<><><> Dispatch Methods - These methods SEND messages <><><>
 
-// Send a ClientMessage to the client's own listener
-func (c *Client) DispatchControlClientMessage(CliMsg *pc.ClientMessage) *pc.ClientMessage {
-	conn, err := connectTo(c.ClientAdd.IP, c.ClientAdd.Port)
+//
+func (c *Client) DispatchClientKeepAlive() bool {
+
+	cliMsg := pc.ClientMessage{Type: pc.ClientMessage_KeepAlive}
+
+	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
 	if err != nil {
-		fmt.Println("Error connecting:", err)
+		fmt.Println("Error connecting to master for KeepAlive")
+		return false
 	}
+
 	defer conn.Close()
 
-	cConn := pc.NewClientListeningServiceClient(conn)
-	response, err := cConn.SendClientMessage(context.Background(), CliMsg)
+	cli := pc.NewNodeCommListeningServiceClient(conn)
+
+	response, err := cli.KeepAliveForClient(context.Background(), &cliMsg)
+
 	if err != nil {
-		fmt.Println("Error dispatching client control message:", err)
+		fmt.Println("Client's master failed KeepAlive.")
+		return false
 	}
-	return response
+	if response.Type != pc.ClientMessage_Ack {
+		fmt.Println("Client's master returned gibberish.")
+		return false
+	}
+	return true
+
 }
 
 //DispatchClientMessage sends a client message

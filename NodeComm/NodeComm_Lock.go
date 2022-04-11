@@ -107,7 +107,6 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	if err != nil {
 		fmt.Println(err)
 		return false, "", "", 0
-
 	}
 
 	l := Lock{}
@@ -119,11 +118,13 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 
 	// if write/read lock is currently held
 	if len(l.Write) != 0 || len(l.Read) != 0 {
+		fmt.Println("HELP")
 		return false, "", "", 0
 	}
 
-	// max lock delay of 10 seconds
-	if lockdelay > 100 || lockdelay < 0 { // 10 second upper bound
+	// max lock delay of 200 seconds
+	if lockdelay > 200 || lockdelay < 0 { // 200 second upper bound
+		fmt.Println("HELP ME")
 		return false, "", "", 0
 	}
 

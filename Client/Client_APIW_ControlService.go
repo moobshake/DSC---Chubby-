@@ -32,18 +32,18 @@ func (c *Client) DispatchShutdown() bool {
 	return false
 }
 
-//DispatchControlMessage dispatches a control message to the server
-func (c *Client) DispatchControlMessage(cMsg *pc.ControlMessage) *pc.ControlMessage {
+// Send a ClientMessage to the client's own listener
+func (c *Client) DispatchControlClientMessage(CliMsg *pc.ClientMessage) *pc.ClientMessage {
 	conn, err := connectTo(c.ClientAdd.IP, c.ClientAdd.Port)
 	if err != nil {
 		fmt.Println("Error connecting:", err)
 	}
 	defer conn.Close()
 
-	cClient := pc.NewClientControlServiceClient(conn)
-	response, err := cClient.SendControlMessage(context.Background(), cMsg)
+	cConn := pc.NewClientControlServiceClient(conn)
+	response, err := cConn.SendControlMessage(context.Background(), CliMsg)
 	if err != nil {
-		fmt.Println("Error dispatching control message:", err)
+		fmt.Println("Error dispatching client control message:", err)
 	}
 	return response
 }
