@@ -50,6 +50,9 @@ MainLoop:
 			deleteConfig(tokenised[1:])
 		case "showconfig", "printconfig":
 			printConfig(config)
+		case "updatedns":
+			Client.UpdateLookup(tokenised[1], tokenised[2])
+			fmt.Println(tokenised[1], tokenised[2])
 		case "help":
 			printHelp(tokenised[1:])
 
@@ -403,6 +406,7 @@ func printHelp(args []string) {
 		fmt.Println("'loadConfig': \t\tLoads a specified configuration from file.")
 		fmt.Println("'showConfig': \t\tPrints the current configuration.")
 		fmt.Println("'printConfig': \t\tAn alias for 'showConfig'.")
+		fmt.Println("'updateDNS [IP] [PORT]': \t\tAllows you to update the DNS table'.")
 		fmt.Println("'exit': \t\tExits the program.")
 		return
 	}
