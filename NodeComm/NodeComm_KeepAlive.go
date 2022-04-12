@@ -10,6 +10,9 @@ func (n *Node) KeepAliveService(interval int) {
 		if n.IsMaster() {
 			continue
 		}
+		if !n.isOnline {
+			break
+		}
 		keepAliveSuccess := n.DispatchKeepAlive(n.getPeerRecord(n.idOfMaster, false))
 		if !keepAliveSuccess { // Verify that coordinator is down
 			keepAliveSuccess = n.badNodeHandler(n.getPeerRecord(n.idOfMaster, false))

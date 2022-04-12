@@ -165,8 +165,6 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 }
 
 func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_SendWriteForwardServer, firstMessage *pc.ServerMessage) error {
-	// This is the first message from the client that should
-	// contain a valid write lock.
 	writeRequestMessage := firstMessage
 
 	// fullFilePath := ""
@@ -183,6 +181,7 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_
 	for {
 		writeRequestMessage, err := stream.Recv()
 		if err == io.EOF {
+			delete(n.outstandingFiles, firstMessage.FileBody.FileName)
 			// Make sure that the majority of replicas give their OK to writing
 			return stream.SendAndClose(&pc.ServerMessage{Type: pc.ServerMessage_Ack})
 		}
@@ -191,5 +190,5 @@ func (n *Node) handleMasterToReplicatWriteRequest(stream pc.NodeCommPeerService_
 		}
 		n.writeToLocalFile(writeRequestMessage.FileBody, false)
 	}
-
+	// Update list of oustanding files
 }

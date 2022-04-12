@@ -39,6 +39,7 @@ type Node struct {
 	nodeRootPath         string
 	nodeDataPath         string
 	nodeLockPath         string
+	outstandingFiles     map[string]*pc.MirrorRecord
 
 	eventClientTracker EventClientTracker
 }

@@ -30,6 +30,7 @@ func (n *Node) SendControlMessage(ctx context.Context, cMsg *pc.ControlMessage) 
 		n.lockGenerationNumber = int(cMsg.ParamsBody.LockGenerationNumber)
 		n.nodeDataPath = cMsg.ParamsBody.NodeDataPath
 		n.nodeLockPath = cMsg.ParamsBody.NodeLockPath
+		n.outstandingFiles = make(map[string]*pc.MirrorRecord)
 		return &pc.ControlMessage{Type: pc.ControlMessage_Okay}, nil
 	case pc.ControlMessage_GetParams:
 		pBody := pc.ParamsBody{
@@ -97,7 +98,6 @@ func (n *Node) SendControlMessage(ctx context.Context, cMsg *pc.ControlMessage) 
 	case pc.ControlMessage_PublishLockConflict:
 		n.PublishConflictingLockRequest(cMsg.Comment)
 	}
-	//TODO: Add here
 
 	return &pc.ControlMessage{Type: pc.ControlMessage_Error, Comment: "Unsupported function."}, nil
 }

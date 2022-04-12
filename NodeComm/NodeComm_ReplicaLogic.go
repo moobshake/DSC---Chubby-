@@ -24,7 +24,7 @@ func (n *Node) onlineNode() {
 		}
 	}
 	n.isOnline = true
-	go n.KeepAliveService(30) // start keep alie service
+	go n.KeepAliveService(30) // start keep alive service
 	go n.MirrorService(60)    // start mirroring service (attempts to mirror every 60 seconds)
 	fmt.Println("Node is online.")
 }
@@ -168,6 +168,9 @@ func (n *Node) badNodeHandler(pRec *pc.PeerRecord) bool {
 	if pRec == nil {
 		return false
 	}
+	if pRec.Id == int32(0) { // not sure if this works, but basically I need to avoid the below code when the intention is wakeUpNode
+		return false
+	}
 	fmt.Println("Potentially offline node detected: ", pRec)
 	fmt.Println("Sending KeepAlive message...")
 	response := n.DispatchKeepAlive(pRec)
@@ -189,33 +192,74 @@ func (n *Node) badNodeHandler(pRec *pc.PeerRecord) bool {
 }
 
 //electionHandler handles all election messages
+//Bully algorithm - modified to prioritise last outstanding files
 func (n *Node) electionHandler(electMsg *pc.CoordinationMessage) {
 	n.electionStatusLock.Lock()
 	n.electionStatus.Active = 2
 	switch electMsg.Type {
 	case pc.CoordinationMessage_ElectSelf:
-		//If no ongoing election and node lost before it even began
-		if n.electionStatus.OngoingElection == 1 && electMsg.FromPRecord.Id > n.myPRecord.Id {
-			n.electionStatus.OngoingElection = 2
-			n.electionStatus.IsWinning = 1
-			n.electionStatusLock.Unlock()
-			return
-		}
-		if n.electionStatus.OngoingElection == 1 { //If no ongoing election and node has a chance of winning
-			n.electionStatus.OngoingElection = 2
-			n.electionStatus.IsWinning = 2
-			go n.electionTimer()
-			if electMsg.FromPRecord.Id < n.myPRecord.Id { //Send reject to lower ID nodes
+
+		//If there is no ongoing election
+		if n.electionStatus.OngoingElection == 1 {
+			n.electionStatus.NumOutstandingFiles = int32(len(n.outstandingFiles))
+			var isPossibleToWin bool
+			//Only the spoofed message should have the same ID
+			if n.myPRecord.Id == electMsg.FromPRecord.Id {
+				isPossibleToWin = true
+			} else if n.electionStatus.NumOutstandingFiles > electMsg.Spare { //If this node has more outstanding requests, it loses by default
+				isPossibleToWin = false
+			} else if n.electionStatus.NumOutstandingFiles < electMsg.Spare { //If this node has less outstanding files, it has a chance of winning
+				isPossibleToWin = true
+			} else if n.electionStatus.NumOutstandingFiles == electMsg.Spare { //If this node has equal outstanding files, break using node ID
+				if n.myPRecord.Id > electMsg.FromPRecord.Id {
+					isPossibleToWin = true
+				} else {
+					isPossibleToWin = false
+				}
+			}
+			if isPossibleToWin {
+				n.electionStatus.OngoingElection = 2
+				n.electionStatus.IsWinning = 2
+				go n.electionTimer()
 				n.DispatchCoordinationMessage(electMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_RejectElect})
+			} else {
+				n.electionStatus.OngoingElection = 2
+				n.electionStatus.IsWinning = 1
 			}
 			n.electionStatusLock.Unlock()
 			return
 		}
-		if electMsg.FromPRecord.Id < n.myPRecord.Id { //Send reject to lower ID nodes
+
+		//If there is an ongoing election, send reject if rival node has more outstanding files or if equal, a lower ID
+		var sendReject bool
+		if n.electionStatus.NumOutstandingFiles > electMsg.Spare { //If this node has more outstanding requests, it loses
+			sendReject = false
+		} else if n.electionStatus.NumOutstandingFiles < electMsg.Spare { //If this node has less outstanding files, reject
+			sendReject = true
+		} else if n.electionStatus.NumOutstandingFiles == electMsg.Spare { //If this node has equal outstanding files, break using node ID
+			if n.myPRecord.Id > electMsg.FromPRecord.Id {
+				sendReject = true
+			} else {
+				sendReject = false
+			}
+		}
+		if sendReject {
 			n.DispatchCoordinationMessage(electMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_RejectElect})
 		}
 	case pc.CoordinationMessage_RejectElect:
-		if electMsg.FromPRecord.Id > n.myPRecord.Id {
+		var acceptReject bool
+		if n.electionStatus.NumOutstandingFiles > electMsg.Spare { //If this node has more outstanding requests, it loses
+			acceptReject = true
+		} else if n.electionStatus.NumOutstandingFiles < electMsg.Spare { //If this node has less outstanding files, reject
+			acceptReject = false
+		} else if n.electionStatus.NumOutstandingFiles == electMsg.Spare { //If this node has equal outstanding files, break using node ID
+			if n.myPRecord.Id > electMsg.FromPRecord.Id {
+				acceptReject = false
+			} else {
+				acceptReject = true
+			}
+		}
+		if acceptReject {
 			n.electionStatus.IsWinning = 1
 		}
 	case pc.CoordinationMessage_ElectionResult:
@@ -231,9 +275,10 @@ func (n *Node) electionHandler(electMsg *pc.CoordinationMessage) {
 //When the timer expires, the node will check if it received any RejectElect, if it has not
 //it declares itself the winner of the election.
 func (n *Node) electionTimer() {
+	//Send out electSelf messages
 	for _, pRec := range n.peerRecords {
 		if pRec.Id > n.myPRecord.Id {
-			n.DispatchCoordinationMessage(pRec, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ElectSelf})
+			n.DispatchCoordinationMessage(pRec, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ElectSelf, Spare: len(n.outstandingFiles)})
 		}
 	}
 	//Wait for election to finish

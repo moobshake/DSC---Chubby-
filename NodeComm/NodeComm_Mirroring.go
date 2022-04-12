@@ -84,14 +84,22 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 
 	for _, MRecord := range MRecs {
 		replicaFilePath := filepath.Join(n.nodeRootPath, MRecord.FilePath)
-		fmt.Println(replicaFilePath)
+		var filePath string
+		if strings.Contains(MRecord.FilePath, "\\") {
+			filePathSplit := strings.Split(MRecord.FilePath, "\\")
+			filePath = strings.Join(filePathSplit, "\\")
+		} else {
+			filePath = MRecord.FilePath
+		}
+
+		// fmt.Println(replicaFilePath)
 
 		_, err := os.Stat(replicaFilePath)
 		if err != nil || os.IsNotExist(err) {
 			//File does not exist
 			MRecs := []*pc.MirrorRecord{MRecord}
-			fmt.Println("MirrorSink, not exist")
-
+			fmt.Println("MirrorSink: not exist")
+			n.outstandingFiles[filePath] = MRecord
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})
 			continue
 		}
@@ -99,15 +107,18 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 		if err != nil {
 			//Error reading
 			MRecs := []*pc.MirrorRecord{MRecord}
+			fmt.Println("MirrorSink: cannot access")
+			n.outstandingFiles[filePath] = MRecord
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})
 			continue
 		}
 		checksum := getFileChecksum(replicaFilePath)
 		if !checkFileSumSame(MRecord.CheckSum, checksum) {
-			fmt.Println("MirrorSink, checksum")
+			fmt.Println("MirrorSink: invalid checksum")
 
 			//File not same
 			MRecs := []*pc.MirrorRecord{MRecord}
+			n.outstandingFiles[filePath] = MRecord
 			n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqFile, MirrorRecords: MRecs})
 			continue
 		}
@@ -119,6 +130,9 @@ func (n *Node) MirrorService(mirrorInterval int) {
 		time.Sleep(time.Second * time.Duration(mirrorInterval))
 		if n.IsMaster() {
 			continue
+		}
+		if !n.isOnline {
+			break
 		}
 		n.DispatchCoordinationMessage(n.getPeerRecord(n.idOfMaster, false), &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
 	}

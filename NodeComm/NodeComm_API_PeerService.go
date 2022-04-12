@@ -60,10 +60,10 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 	if !n.isOnline {
 		if coMsg.Type == pc.CoordinationMessage_WakeUpAndJoinNetwork {
 			fmt.Println("Recieved:", coMsg.Type)
-			if n.idOfMaster != int(coMsg.FromPRecord.Id) {
-				return &pc.CoordinationMessage{Type: pc.CoordinationMessage_NotMaster}, nil
-			}
-			fmt.Println("This node has received a WAKEUP message from its coordinator.")
+			// if n.idOfMaster != int(coMsg.FromPRecord.Id) {
+			// 	return &pc.CoordinationMessage{Type: pc.CoordinationMessage_NotMaster}, nil
+			// }
+			fmt.Println("This node has received a WAKEUP message from a coordinator.")
 			n.updatePeerRecords(coMsg.FromPRecord)
 			//Quicky and dirty ID collision avoidance
 			for _, pRec := range n.peerRecords {
@@ -75,7 +75,7 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 			n.onlineNode()
 			response := n.DispatchCoordinationMessage(coMsg.FromPRecord, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ReqToMirror})
 			if response.Type == pc.CoordinationMessage_Ack {
-				return &pc.CoordinationMessage{Type: pc.CoordinationMessage_Ack}, nil
+				return &pc.CoordinationMessage{FromPRecord: n.myPRecord, Type: pc.CoordinationMessage_Ack}, nil
 			} else {
 				n.offlineNode()
 				return &pc.CoordinationMessage{Type: pc.CoordinationMessage_Empty}, nil
