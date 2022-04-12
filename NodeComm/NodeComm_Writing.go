@@ -125,8 +125,10 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 	writeRequestBuffers = append(writeRequestBuffers, writeRequestMessage)
 
 	// Validate write lock
-	// TODO(Hannah): change to appropriate function
 	if n.validateWriteLock(int(firstMessage.ClientID), firstMessage.Lock.Sequencer) {
+		// publish file modification event to invalidate other client caches
+		go n.PublishFileContentModification(writeRequestBuffers[0].StringMessages, writeRequestBuffers[0].ClientAddress)
+
 		writeRequestMessage.FileBody.FileName = filepath.Join(LOCAL_DATA_DIR_PREFIX, TEMP_PREFIX+writeRequestMessage.StringMessages)
 		n.writeToLocalFile(writeRequestMessage.FileBody, true)
 
@@ -139,8 +141,6 @@ func (n *Node) handleClientWriteRequest(stream pc.NodeCommListeningService_SendW
 				if n.SendWriteRequestToReplicas(writeRequestBuffers) {
 					// Majority of replicas gave their ok, write from temp to local file
 					if n.writeFromTempToLocal(writeRequestBuffers[0].StringMessages) {
-						// publish file modification event
-						go n.PublishFileContentModification(writeRequestBuffers[0].StringMessages, writeRequestBuffers[0].ClientAddress)
 						return stream.SendAndClose(&pc.ClientMessage{Type: pc.ClientMessage_FileWrite})
 					} else {
 						n.deleteTempFile(writeRequestBuffers[0].StringMessages)
