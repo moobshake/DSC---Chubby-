@@ -30,7 +30,7 @@ func connectTo(address, port string) (*grpc.ClientConn, error) {
 	// return conn, err
 }
 
-// Lookup Table Methods
+//  Table Methods
 // Represents the data structure in the lookup table
 // Fields are capitalized as only exported fields of a GO struct will be present in a JSON output
 type lookupVal struct {
@@ -55,7 +55,7 @@ func readLookup() []lookupVal {
 }
 
 //update_Lookup is a method to add addresses to DNS table
-func updateLookup(nodeID int32, IP string, port string) {
+func UpdateLookup(IP string, port string) {
 
 	curTable := readLookup()
 
