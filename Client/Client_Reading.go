@@ -51,20 +51,28 @@ func (c *Client) getValidLocalReadLock(readFileName string) *pc.LockMessage {
 	lockStatus := c.isLockExpire(readFileName)
 	if lockStatus == 2 {
 		lock := c.Locks[readFileName]
-		if lock.lockType == READ_CLI || lock.lockType == WRITE_CLI {
+		if lock.lockType == READ_CLI {
 			fmt.Println("Retrived read lock:", lock.sequencer)
 			// convert valid lock to lock message
-			return &pc.LockMessage{Sequencer: lock.sequencer}
+			return &pc.LockMessage{Sequencer: lock.sequencer, Type: pc.LockMessage_ReadLock, LockDelay: int32(lock.lockDelay), TimeStamp: lock.timestamp.String()}
+		} else if lock.lockType == WRITE_CLI {
+			fmt.Println("Retrived write lock, can be used as read lock:", lock.sequencer)
+			// convert valid lock to lock message
+			return &pc.LockMessage{Sequencer: lock.sequencer, Type: pc.LockMessage_WriteLock, LockDelay: int32(lock.lockDelay), TimeStamp: lock.timestamp.String()}
 		}
 	} else if lockStatus == 0 {
 		c.ClientRequest(REQ_LOCK, READ_CLI, readFileName)
 		time.Sleep(time.Second * 1)
 		if c.isLockExpire(readFileName) == 2 {
 			lock := c.Locks[readFileName]
-			if lock.lockType == READ_CLI || lock.lockType == WRITE_CLI {
+			if lock.lockType == READ_CLI {
 				fmt.Println("Retrived read lock:", lock.sequencer)
 				// convert valid lock to lock message
-				return &pc.LockMessage{Sequencer: lock.sequencer}
+				return &pc.LockMessage{Sequencer: lock.sequencer, Type: pc.LockMessage_ReadLock, LockDelay: int32(lock.lockDelay), TimeStamp: lock.timestamp.String()}
+			} else if lock.lockType == WRITE_CLI {
+				fmt.Println("Retrived write lock, can be used as read lock:", lock.sequencer)
+				// convert valid lock to lock message
+				return &pc.LockMessage{Sequencer: lock.sequencer, Type: pc.LockMessage_WriteLock, LockDelay: int32(lock.lockDelay), TimeStamp: lock.timestamp.String()}
 			}
 		}
 	}

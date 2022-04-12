@@ -33,10 +33,17 @@ func (n *Node) validateReadLock(id int, sequencer string) bool {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	// read lock empty, means it expired
 	if len(l.Read) == 0 {
-		return false
+		// check for write lock. if write lock is valid, then it is okay
+		if len(l.Write) != 0 {
+			for i := range l.Write {
+				if i == id && l.Write[i].Sequence == sequencer {
+					fmt.Println("Valid write lock, allow client to read too.")
+					return true
+				}
+			}
+		}
 	} else {
 		for i := range l.Read {
 			// if id is found in l.read and sequencer is the same

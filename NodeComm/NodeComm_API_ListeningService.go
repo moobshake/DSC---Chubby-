@@ -119,8 +119,6 @@ func (n *Node) SendEventMessage(ctx context.Context, eMsg *pc.EventMessage) (*pc
 func (n *Node) SendReadRequest(CliMsg *pc.ClientMessage, stream pc.NodeCommListeningService_SendReadRequestServer) error {
 	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
 
-	fmt.Printf("> Client %d requesting to read\n", CliMsg.ClientID)
-
 	if !n.IsMaster() {
 		// Return a master redirection message
 		cliMsg := n.getRedirectionCliMsg(CliMsg.ClientID)
