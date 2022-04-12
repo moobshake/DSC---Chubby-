@@ -18,26 +18,30 @@ func (n *Node) handleLockfromMaster(serverMsg *pc.ServerMessage) *pc.ServerMessa
 	// Read from lock files
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		fmt.Println("Creating", filename, "file and lock")
+		createFile(n.nodeDataPath, filename, "")
+		createFile(n.nodeLockPath, filename, ".lock")
+		file, _ = ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	}
 
 	l := Lock{}
 
 	err = json.Unmarshal([]byte(file), &l)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	// Append to lock file
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	time_str := convertTime(serverMsg.Lock.TimeStamp)
 	l_val := LockValues{Sequence: serverMsg.Lock.Sequencer, Timestamp: time_str, Lockdelay: int(serverMsg.Lock.LockDelay)}
 
 	clientID, err := strconv.Atoi(serverMsg.StringMessages)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	switch serverMsg.Lock.Type {
@@ -50,12 +54,12 @@ func (n *Node) handleLockfromMaster(serverMsg *pc.ServerMessage) *pc.ServerMessa
 
 	data, err := json.MarshalIndent(l, "", " ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	err = ioutil.WriteFile(n.nodeLockPath+"/"+filename+".lock", data, 0644)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	return &pc.ServerMessage{Type: pc.ServerMessage_Ack}

@@ -63,7 +63,9 @@ func initLockContent(file os.File) {
 // helper function to create files
 func createFile(path string, filename string, filetype string) {
 	newfile, err := os.Create(path + "/" + filename + filetype)
-	initLockContent(*newfile)
+	if filetype != "" {
+		initLockContent(*newfile)
+	}
 	defer newfile.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -106,7 +108,11 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	file, err := ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	if err != nil {
 		fmt.Println(err)
-		return false, "", "", 0
+		// if no such lock exist, means no such file exist!
+		fmt.Println("Creating", filename, "file and lock")
+		createFile(n.nodeDataPath, filename, "")
+		createFile(n.nodeLockPath, filename, ".lock")
+		file, _ = ioutil.ReadFile(n.nodeLockPath + "/" + filename + ".lock")
 	}
 
 	l := Lock{}
