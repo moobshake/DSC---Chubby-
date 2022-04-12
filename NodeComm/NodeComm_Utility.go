@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -44,4 +46,23 @@ func checkFileSumSame(chksum1, chksum2 []byte) bool {
 		}
 	}
 	return true
+}
+
+// When passing messages between Windows and Linux, the string file paths
+// use different slashes. Make sure that the file path received can be perceived
+// correctly by the current machine.
+// Returns nil - but changes the filepath string (ptr) to the correct one version
+// the of filepath.
+func getCorrectFilePath(oriFilePath *string) {
+	os := runtime.GOOS
+	switch os {
+	case "windows":
+		// fmt.Println("Windows")
+		// replace all "/" to "\\" in path
+		*oriFilePath = strings.Replace(*oriFilePath, "/", "\\", -1)
+	default:
+		// fmt.Println("Linux")
+		// replace all "\\" to "/" in path
+		*oriFilePath = strings.Replace(*oriFilePath, "\\", "/", -1)
+	}
 }
