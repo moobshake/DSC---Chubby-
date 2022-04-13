@@ -18,6 +18,8 @@ func (n *Node) KeepAliveForClient(ctx context.Context, inMsg *pc.ClientMessage) 
 	switch inMsg.Type {
 	case pc.ClientMessage_KeepAlive:
 		nMsg := pc.ClientMessage{Type: pc.ClientMessage_Ack}
+		*n.activeClients = append(*n.activeClients, int(inMsg.ClientID))
+		*n._activeClients = append(*n._activeClients, int(inMsg.ClientID))
 		return &nMsg, nil
 	default:
 		//Received a non-keepalive message on the keepalive channel

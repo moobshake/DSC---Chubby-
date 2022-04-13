@@ -40,8 +40,10 @@ type Node struct {
 	nodeDataPath         string
 	nodeLockPath         string
 	outstandingFiles     map[string]*pc.MirrorRecord
-
-	eventClientTracker EventClientTracker
+	eventClientTracker   EventClientTracker
+	activeClients        *[]int
+	_activeClients       *[]int
+	activeClientsLock    sync.Mutex
 }
 
 //CreateNode initialises a Node

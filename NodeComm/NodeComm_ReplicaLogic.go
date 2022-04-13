@@ -26,6 +26,7 @@ func (n *Node) onlineNode() {
 	n.isOnline = true
 	go n.KeepAliveService(30) // start keep alive service
 	go n.MirrorService(60)    // start mirroring service (attempts to mirror every 60 seconds)
+	go n.ClientKeepAliveService(5)
 	fmt.Println("Node is online.")
 }
 
