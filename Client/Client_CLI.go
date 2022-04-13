@@ -280,11 +280,24 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 func (c Client) ClientReadRequest(readFileName string) {
 	// Check if the file is valid in cache
-	// Darryl: also check if readLock has expired, if it is, send another request
+	// Check if readLock has expired, if it is, send another request
 	if c.ClientCacheValidation[readFileName] && c.isLockExpire(readFileName) == 2 {
 		fmt.Println("> File", readFileName, "already exists in cache and is valid.")
 	} else {
 		// otherwise, request from master
-		c.DispatchReadRequest(readFileName)
+		if !c.DispatchReadRequest(readFileName) {
+			// Cannot get file
+			fmt.Println("WARNING: Client was unable to get a successful read request.")
+			return
+		}
 	}
+
+	// display file from cache
+	firstLine := c.readFile(readFileName, 1)
+	if firstLine == READ_ERROR {
+		fmt.Println("WARNING: Client was unable to get a successful read request.")
+		return
+	}
+
+	println("Client Read Success - First line of", readFileName, ":\n"+firstLine)
 }

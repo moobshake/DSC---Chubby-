@@ -65,14 +65,14 @@ func (c *Client) DispatchClientMessage(destPRec *pc.PeerRecord, CliMsg *pc.Clien
 // DispatchReadRequest sends a read request to the server.
 // The server streams back the file content if the client has a valid lock.
 // Returns if the read request was successful
-func (c *Client) DispatchReadRequest(readFileName string) {
+func (c *Client) DispatchReadRequest(readFileName string) bool {
 	fmt.Printf("Client %d creating Read Request\n", c.ClientID)
 
 	readLock := c.getValidLocalReadLock(readFileName)
 
 	if readLock.Sequencer == "" {
 		fmt.Println("Cannot get lock. Try again.")
-		return
+		return false
 	}
 
 	cliMsg := pc.ClientMessage{
@@ -85,7 +85,7 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 
 	conn, err := connectTo(c.MasterAdd.Address, c.MasterAdd.Port)
 	if err != nil {
-		return
+		return false
 	}
 
 	defer conn.Close()
@@ -98,8 +98,7 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 		fmt.Println("DispatchReadRequest: ERROR", err)
 		// Try to find a new master
 		c.FindMaster()
-		c.DispatchReadRequest(readFileName)
-		return
+		return c.DispatchReadRequest(readFileName)
 	}
 
 	// Always truncate the cache file first
@@ -119,14 +118,13 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 
 		if cliMsg.Type == pc.ClientMessage_RedirectToCoordinator {
 			c.HandleMasterRediction(cliMsg)
-			c.DispatchReadRequest(readFileName)
-			break
+			return c.DispatchReadRequest(readFileName)
 		}
 
 		if cliMsg.Type == pc.ClientMessage_Error {
 			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
 			c.ClientCacheValidation[readFileName] = false
-			break
+			return false
 		}
 
 		fileContent := cliMsg.FileBody
@@ -134,13 +132,13 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 		if fileContent.Type == pc.FileBodyMessage_Error {
 			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
 			c.ClientCacheValidation[readFileName] = false
-			break
+			return false
 		}
 
 		if fileContent.Type == pc.FileBodyMessage_InvalidLock {
 			fmt.Println("Server sent back:", fileContent.Type)
 			c.ClientCacheValidation[readFileName] = false
-			break
+			return false
 		}
 
 		c.writeToCache(fileContent, truncateFile)
@@ -149,6 +147,8 @@ func (c *Client) DispatchReadRequest(readFileName string) {
 		fmt.Println("Client received a successful read block")
 		c.ClientCacheValidation[readFileName] = true
 	}
+
+	return true
 }
 
 // DispatchClientWriteRequest sends a stream of messages to the server.

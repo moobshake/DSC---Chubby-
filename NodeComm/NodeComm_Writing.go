@@ -53,6 +53,9 @@ func (n *Node) validateWriteLock(id int, sequencer string) bool {
 func (n *Node) writeToLocalFile(fileBody *pc.FileBodyMessage, truncateFile bool) {
 	fmt.Println("> server writing to file:")
 
+	// Get the correct file path for this machine os
+	getCorrectFilePath(&fileBody.FileName)
+
 	fullFilePath := filepath.Join(n.nodeRootPath, fileBody.FileName)
 	fmt.Println("writeToLocalFile:", fileBody.FileName, fullFilePath, "root", n.nodeRootPath)
 

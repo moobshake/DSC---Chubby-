@@ -1,12 +1,17 @@
 package client
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	pc "assignment1/main/protocchubby"
+)
+
+const (
+	READ_ERROR = "READ_ERROR"
 )
 
 // This function appends the file information to the end of the file.
@@ -80,4 +85,44 @@ func (c *Client) getValidLocalReadLock(readFileName string) *pc.LockMessage {
 	// no valid lock to return
 	fmt.Println("Unable to retrieve a valid read lock")
 	return &pc.LockMessage{}
+}
+
+// Returns a string of the first numLines lines of a file.
+func (c *Client) readFile(readFileName string, numLines int) string {
+	// Check validity of file being read.
+	// Either no valid cache, or have valid cache but lock expired
+	if !c.ClientCacheValidation[readFileName] ||
+		(c.ClientCacheValidation[readFileName] && c.isLockExpire(readFileName) != 2) {
+		c.ClientCacheValidation[readFileName] = false
+		fmt.Println(readFileName, "has no valid cache. ")
+		return READ_ERROR
+	}
+
+	output := ""
+
+	cacheFilePath := filepath.Join(c.ClientCacheFilePath, readFileName)
+	cached_file, err := os.Open(cacheFilePath)
+	if err != nil {
+		fmt.Println("ClientReadRequest ERROR:", err)
+	}
+	defer cached_file.Close()
+	s := bufio.NewScanner(cached_file)
+
+	numLinesRead := 0
+	for s.Scan() {
+		output += s.Text() + "\n"
+		numLinesRead++
+		if numLinesRead >= numLines {
+			break
+		}
+
+	}
+
+	// Either the end of file or an error. Break.
+	if err != nil {
+		fmt.Println("readFile ERROR:", err)
+		return READ_ERROR
+	}
+
+	return output
 }
