@@ -51,6 +51,13 @@ func (n *Node) checkFiles(path string) {
 // check if write lock expired
 func (n *Node) checkWriteLock(l Lock, filename string) {
 	for i := range l.Write {
+		// check if client is still active
+		// if not active just release lock
+		if !n.isClientActiveLock(i) {
+			fmt.Println("Client is not active just release write lock")
+			fn := strings.ReplaceAll(filename, ".lock", "")
+			n.ReleaseWriteLock(fn, i)
+		}
 		timeDiff := time.Now().Sub(l.Write[i].Timestamp).Seconds()
 		if int(timeDiff) >= l.Write[i].Lockdelay {
 			fmt.Printf("Write lock expired for Client %d\n", i)
@@ -63,6 +70,13 @@ func (n *Node) checkWriteLock(l Lock, filename string) {
 // check if read locks expired
 func (n *Node) checkReadLock(l Lock, filename string) {
 	for i := range l.Read {
+		// check if client is still active
+		// if not active just release lock
+		if !n.isClientActiveLock(i) {
+			fmt.Println("Client is not active just release read lock")
+			fn := strings.ReplaceAll(filename, ".lock", "")
+			n.ReleaseReadLock(fn, i)
+		}
 		timeDiff := time.Now().Sub(l.Read[i].Timestamp).Seconds()
 		if int(timeDiff) >= l.Read[i].Lockdelay {
 			fmt.Printf("Read lock expired for Client %d\n", i)
@@ -107,4 +121,13 @@ func (n *Node) ReleaseLockChecker(clientId int, lType pc.LockMessage_LockType, l
 		}
 	}
 	return "error"
+}
+
+func (n *Node) isClientActiveLock(id int) bool {
+	for _, x := range *n.activeClients {
+		if x == id {
+			return true
+		}
+	}
+	return false
 }
