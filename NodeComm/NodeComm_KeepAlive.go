@@ -1,6 +1,8 @@
 package nodecomm
 
-import "time"
+import (
+	"time"
+)
 
 //For replica <-> replica
 // Warning: This method assumes that the peer record for the master is correct.
@@ -35,9 +37,24 @@ func (n *Node) ClientKeepAliveService(interval int) {
 			break
 		}
 		n.activeClientsLock.Lock()
+
 		*n.activeClients = *n._activeClients
 		var emptyArray []int
 		n._activeClients = &emptyArray
 		n.activeClientsLock.Unlock()
+	}
+}
+
+func (n *Node) NoteClientIsAlive(clientID int) {
+	var isInside bool = false
+	for _, x := range *n.activeClients {
+		if x == int(clientID) {
+			isInside = true
+			break
+		}
+	}
+	if !isInside {
+		*n.activeClients = append(*n.activeClients, int(clientID))
+		*n._activeClients = append(*n._activeClients, int(clientID))
 	}
 }

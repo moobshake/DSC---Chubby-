@@ -128,7 +128,10 @@ func (c *Client) DispatchReadRequest(readFileName string) bool {
 		}
 
 		fileContent := cliMsg.FileBody
-
+		if fileContent == nil {
+			fmt.Println("DispatchReadRequest: ERROR", "file body empty")
+			return false
+		}
 		if fileContent.Type == pc.FileBodyMessage_Error {
 			fmt.Println("Server returned an error for file reading:", cliMsg.StringMessages)
 			c.ClientCacheValidation[readFileName] = false

@@ -148,6 +148,7 @@ func (n *Node) AcquireWriteLock(filename string, client_id int, lockdelay int) (
 	if err != nil {
 		fmt.Println(err)
 	}
+	n.NoteClientIsAlive(int(client_id))
 	return true, s, ts.String(), lockdelay
 }
 
@@ -215,7 +216,7 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	n.NoteClientIsAlive(int(client_id))
 	return true, s, ts.String(), lockdelay
 }
 

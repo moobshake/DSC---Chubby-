@@ -48,6 +48,9 @@ type Node struct {
 
 //CreateNode initialises a Node
 func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
+	_active_client := []int{}
+	active_client := []int{}
+
 	n := Node{
 		idOfMaster:           idOfMaster,
 		myPRecord:            &pc.PeerRecord{Id: int32(id), Address: ipAddr, Port: port},
@@ -57,6 +60,8 @@ func CreateNode(id, idOfMaster int, ipAddr, port string, verbose int) *Node {
 		nodeRootPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_STORAGE_PREFIX+strconv.Itoa(id)),
 		nodeDataPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_STORAGE_PREFIX+strconv.Itoa(id), LOCAL_DATA_DIR_PREFIX),
 		nodeLockPath:         filepath.Join(LOCAL_ROOT_PATH, LOCAL_DATA_STORAGE_PREFIX+strconv.Itoa(id), LOCAL_LOCK_DIR_PREFIX),
+		_activeClients:       &_active_client,
+		activeClients:        &active_client,
 	}
 
 	n.InitDirectory(n.nodeDataPath, true)
