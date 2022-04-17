@@ -122,12 +122,3 @@ func (n *Node) ReleaseLockChecker(clientId int, lType pc.LockMessage_LockType, l
 	}
 	return "error"
 }
-
-func (n *Node) isClientActiveLock(id int) bool {
-	for _, x := range *n.activeClients {
-		if x == id {
-			return true
-		}
-	}
-	return false
-}

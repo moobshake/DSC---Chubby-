@@ -37,24 +37,30 @@ func (n *Node) ClientKeepAliveService(interval int) {
 			break
 		}
 		n.activeClientsLock.Lock()
-
+		*n.activeClients = make([]int, len(*n._activeClients))
 		*n.activeClients = *n._activeClients
-		var emptyArray []int
-		n._activeClients = &emptyArray
+		*n._activeClients = []int{}
 		n.activeClientsLock.Unlock()
 	}
 }
 
 func (n *Node) NoteClientIsAlive(clientID int) {
-	var isInside bool = false
-	for _, x := range *n.activeClients {
-		if x == int(clientID) {
-			isInside = true
-			break
-		}
-	}
-	if !isInside {
+	n.activeClientsLock.Lock()
+	if !InIntArray(n.activeClients, clientID) {
 		*n.activeClients = append(*n.activeClients, int(clientID))
+	}
+	if !InIntArray(n._activeClients, clientID) {
 		*n._activeClients = append(*n._activeClients, int(clientID))
 	}
+	n.activeClientsLock.Unlock()
+}
+
+func (n *Node) isClientActiveLock(id int) bool {
+	if !n.IsMaster() { //Darryl level code
+		return true
+	}
+	n.activeClientsLock.Lock()
+	result := InIntArray(n.activeClients, id)
+	n.activeClientsLock.Unlock()
+	return result
 }

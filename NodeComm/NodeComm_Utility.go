@@ -66,3 +66,14 @@ func getCorrectFilePath(oriFilePath *string) {
 		*oriFilePath = strings.Replace(*oriFilePath, "\\", "/", -1)
 	}
 }
+
+//InIntArray returns true if the given element is in the array and false otherwise
+func InIntArray(arr *[]int, elem int) bool {
+	tarr := *arr
+	for _, element := range tarr {
+		if element == elem {
+			return true
+		}
+	}
+	return false
+}

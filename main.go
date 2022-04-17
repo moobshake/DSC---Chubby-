@@ -53,6 +53,9 @@ MainLoop:
 		case "updatedns":
 			Client.UpdateLookup(tokenised[1], tokenised[2])
 			fmt.Println(tokenised[1], tokenised[2])
+		case "startconfig":
+			loadConfig(&config, tokenised[1:])
+			startNode(config)
 		case "help":
 			printHelp(tokenised[1:])
 
