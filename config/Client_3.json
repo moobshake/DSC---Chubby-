@@ -1,0 +1,9 @@
+{
+	"NodeID": 3,
+	"NodeIP": "127.0.0.1",
+	"NodePort": "8002",
+	"Verbose": 0,
+	"IdOfMaster": 0,
+	"ConfigName": "Client_3",
+	"NodeType": "client"
+}

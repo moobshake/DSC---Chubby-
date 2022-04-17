@@ -46,15 +46,18 @@ func (n *Node) ClientKeepAliveService(interval int) {
 }
 
 func (n *Node) NoteClientIsAlive(clientID int) {
-	var isInside bool = false
+	n.activeClientsLock.Lock()
 	for _, x := range *n.activeClients {
-		if x == int(clientID) {
-			isInside = true
+		if x != int(clientID) {
+			*n.activeClients = append(*n.activeClients, int(clientID))
 			break
 		}
 	}
-	if !isInside {
-		*n.activeClients = append(*n.activeClients, int(clientID))
-		*n._activeClients = append(*n._activeClients, int(clientID))
+	for _, x := range *n._activeClients {
+		if x != int(clientID) {
+			*n._activeClients = append(*n._activeClients, int(clientID))
+			break
+		}
 	}
+	n.activeClientsLock.Unlock()
 }

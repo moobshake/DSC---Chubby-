@@ -269,7 +269,8 @@ func (c Client) ClientRequest(reqType string, additionalArgs ...string) {
 
 		if res.Type == pc.ClientMessage_RedirectToCoordinator {
 			c.HandleMasterRediction(res)
-			c.ClientRequest(reqType, additionalArgs[0], additionalArgs[1])
+			// c.ClientRequest(reqType, additionalArgs[0], additionalArgs[1])
+			c.ClientRequest(reqType, additionalArgs...)
 		}
 	} else {
 		// Try to find a new master
