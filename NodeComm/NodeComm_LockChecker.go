@@ -55,6 +55,8 @@ func (n *Node) checkWriteLock(l Lock, filename string) {
 		// if not active just release lock
 		if !n.isClientActiveLock(i) {
 			fmt.Println("Client is not active just release write lock")
+			fmt.Println(n._activeClients)
+			fmt.Println(n.activeClients)
 			fn := strings.ReplaceAll(filename, ".lock", "")
 			n.ReleaseWriteLock(fn, i)
 		}
