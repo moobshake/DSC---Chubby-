@@ -155,7 +155,7 @@ For example, if you wish to write to the file "file1.txt", please type
 ```
 
 ### sub SUB_TYPE
-The client may subscribe to 4 events triggered at the chubby master. The master will then publish a message to each subscribed client upon the trigger of an event. Do note that out of all the events, only File Modification has been integrated with the chubby Master's code as we did not see the eventual need for all of the others. However, the master will still receive the other 3 subscription events and users can manually publish the event through the chubby master's command line. 
+The client may subscribe to 4 events triggered at the chubby master. The master will then publish a message to each subscribed client upon the trigger of an event. Do note that out of all the events, only File Modification has been integrated with the chubby Master's code as we did not see the eventual need for all of the others. However, the master will still receive the other 3 subscription events and users can manually [publish](#publish) the event through the chubby master's command line. 
 
 1. File Modification
 When another client writes to a specified file, all other subscribed clients will receive a notification and will invalidate their own cache of the file. 
@@ -166,7 +166,7 @@ To subscribe to this event, type:
 where FILE_NAME is the name of the file to monitor such as "file1.txt"
 
 2. Lock Acquire
-This publishing of this event can only be tested by manually publishing it at the chubby master. 
+This publishing of this event can only be tested by manually [publishing](#publish) it at the chubby master. 
 To subscribe to this event, type:
 ```
 > sub LockAcquire LOCK_NAME
@@ -174,7 +174,7 @@ To subscribe to this event, type:
 where LOCK_NAME is the name of the lock to monitor such as "file1.txt.lock"
 
 3. Lock Conflict
-This publishing of this event can only be tested by manually publishing it at the chubby master. 
+This publishing of this event can only be tested by manually [publishing](#publish) it at the chubby master. 
 To subscribe to this event, type:
 ```
 > sub LockConflict LOCK_NAME
@@ -182,7 +182,7 @@ To subscribe to this event, type:
 where LOCK_NAME is the name of the lock to monitor such as "file1.txt.lock"
 
 4. Master Failover
-This publishing of this event can only be tested by manually publishing it at the chubby master. 
+This publishing of this event can only be tested by manually [publishing](#publish) it at the chubby master. 
 To subscribe to this event, type:
 ```
 > sub MasterFailover
@@ -287,7 +287,35 @@ This command instructs the replica to initate an election within the replica net
 ```
 
 ### publish
-Hannah help
+The clients may subscribe to 4 events triggered at the chubby master. The master will then publish a message to each subscribed client upon the trigger of an event. Do note that out of all the events, only File Modification has been integrated with the chubby Master's code as we did not see the eventual need for all of the others. These commands here are to manually publish an event, sending a simple message to the subscribed clients. 
+
+1. File Modification
+When another client writes to a specified file, all other subscribed clients will receive a notification and will invalidate their own cache of the file. 
+To manually publish this event to subscribed clients, type:
+```
+> publish FileMod FILE_NAME
+```
+where FILE_NAME is the name of the file to monitor such as "file1.txt"
+
+2. Lock Acquire
+To manually publish this event to subscribed clients, type:
+```
+> publish LockAcquire LOCK_NAME
+```
+where LOCK_NAME is the name of the lock to monitor such as "file1.txt.lock"
+
+3. Lock Conflict
+To manually publish this event to subscribed clients, type:
+```
+> publish LockConflict LOCK_NAME
+```
+where LOCK_NAME is the name of the lock to monitor such as "file1.txt.lock"
+
+4. Master Failover
+To manually publish this event to subscribed clients, type:
+```
+> publish MasterFailover
+```
 
 ### wakeUpNode
 This command is used by the coordinator to remotely instruct an offline replica to online and join the coordinator's network.
