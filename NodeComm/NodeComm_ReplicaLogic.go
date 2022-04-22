@@ -279,9 +279,7 @@ func (n *Node) electionHandler(electMsg *pc.CoordinationMessage) {
 func (n *Node) electionTimer() {
 	//Send out electSelf messages
 	for _, pRec := range n.peerRecords {
-		if pRec.Id > n.myPRecord.Id {
-			n.DispatchCoordinationMessage(pRec, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ElectSelf, Spare: int32(len(n.outstandingFiles))})
-		}
+		n.DispatchCoordinationMessage(pRec, &pc.CoordinationMessage{Type: pc.CoordinationMessage_ElectSelf, Spare: int32(len(n.outstandingFiles))})
 	}
 	//Wait for election to finish
 	for n.electionStatus.Active == 2 {

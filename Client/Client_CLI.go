@@ -92,14 +92,16 @@ Main:
 
 func printHelp(params []string) {
 	if len(params) == 1 {
-		fmt.Printf("'%s':\t Exit program.\n", EXIT_CLI)
+		fmt.Println("Available Commands:")
+		fmt.Println("'help': \t\t\t\t\t Prints this menu.")
+		fmt.Printf("'%s':\t\t\t\t\t\t Exit program.\n", EXIT_CLI)
 		fmt.Printf("'%s FILE_NAME [modify file? %s/%s]':\t Client sends Write Request to Master.\n", WRITE_CLI, TRUE_CLI, FALSE_CLI)
-		fmt.Printf("'%s FILE_NAME':\t Client sends Read Request to Master.\n", READ_CLI)
-		fmt.Printf("'%s SUB_TYPE':\t Sends a subscription request. Type help %s for more info.\n", SUB, SUB)
-		fmt.Printf("'%s':\t Lists the files available for the client\n", LIST_FILE_CLI)
-		fmt.Printf("'%s':\t Lists the locks available for the client\n", LIST_LOCKS_CLI)
-		fmt.Printf("'%s FILE_NAME':\t Release lock for FILE_NAME\n", REL_LOCK)
-		fmt.Printf("'%s LOCK_TYPE FILE_NAME':\t Requests lock with LOCK_TYPE (%s/%s)for FILE_NAME\n", REQ_LOCK, READ_CLI, WRITE_CLI)
+		fmt.Printf("'%s FILE_NAME':\t\t\t\t Client sends Read Request to Master.\n", READ_CLI)
+		fmt.Printf("'%s SUB_TYPE':\t\t\t\t\t Sends a subscription request. Type help %s for more info.\n", SUB, SUB)
+		fmt.Printf("'%s':\t\t\t\t\t\t Lists the files available for the client\n", LIST_FILE_CLI)
+		fmt.Printf("'%s':\t\t\t\t\t\t Lists the locks available for the client\n", LIST_LOCKS_CLI)
+		fmt.Printf("'%s FILE_NAME':\t\t\t Release lock for FILE_NAME\n", REL_LOCK)
+		fmt.Printf("'%s LOCK_TYPE FILE_NAME':\t\t Requests lock with LOCK_TYPE (%s/%s)for FILE_NAME\n", REQ_LOCK, READ_CLI, WRITE_CLI)
 		return
 	}
 	switch params[1] {

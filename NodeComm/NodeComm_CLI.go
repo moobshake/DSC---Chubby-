@@ -60,19 +60,20 @@ Main:
 
 func printHelp(params []string) {
 	if len(params) == 1 {
-		fmt.Println("'exit':\t Exit program.")
-		fmt.Println("'online':\t Onlines the node.")
-		fmt.Println("'offline':\t Offlines the node.")
-		fmt.Println("'config':\t Configuring node parameters.")
-		fmt.Println("'addPeer':\t Adds a record about a peer node.")
-		fmt.Println("'delPeer':\t Deletes a peer node record.")
-		fmt.Println("'getPeer':\t Get the list of peer records.")
-		fmt.Println("'msg':\t\t Send a plain text message to a peer node.")
-		fmt.Println("'getStatus':\t Obtain information about the node.")
-		fmt.Println("'startElection':\t Used to manually trigger an election.")
-		fmt.Println("'publish':\t\tUsed to manually publish an update to subscribed clients.")
-		fmt.Println("'wakeUpNode [ADDR:PORT]':\t\tUsed to manually wake up another replica.")
-		fmt.Println("'help':\t Prints this menu.")
+		fmt.Println("Available Commands:")
+		fmt.Println("'exit':\t\t\t\tExit program.")
+		fmt.Println("'online':\t\t\tOnlines the node.")
+		fmt.Println("'offline':\t\t\tOfflines the node.")
+		fmt.Println("'config':\t\t\tConfiguring node parameters.")
+		fmt.Println("'addPeer':\t\t\tAdds a record about a peer node.")
+		fmt.Println("'delPeer':\t\t\tDeletes a peer node record.")
+		fmt.Println("'getPeer':\t\t\tGet the list of peer records.")
+		fmt.Println("'msg':\t\t\t\tSend a plain text message to a peer node.")
+		fmt.Println("'getStatus':\t\t\tObtain information about the node.")
+		fmt.Println("'startElection':\t\tUsed to manually trigger an election.")
+		fmt.Println("'publish':\t\t\tUsed to manually publish an update to subscribed clients.")
+		fmt.Println("'wakeUpNode [ADDR:PORT]':\tUsed to manually wake up another replica.")
+		fmt.Println("'help':\t\t\t\tPrints this menu.")
 		return
 	}
 	switch params[1] {

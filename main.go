@@ -400,17 +400,18 @@ func printConfig(currentConfig *configBody) {
 func printHelp(args []string) {
 	if len(args) == 0 {
 		fmt.Println("Available Commands:")
-		fmt.Println("'help': \t\tPrints this help message or information about a given command.")
-		fmt.Println("'config': \t\tUsed to set various parameters.")
-		fmt.Println("'guided-config': \tStarts guided configuration.")
-		fmt.Println("'start': \t\tStarts the node.")
-		fmt.Println("'saveConfig': \t\tSaves the current configuration to file.")
-		fmt.Println("'listConfigs': \t\tLists all known configurations.")
-		fmt.Println("'loadConfig': \t\tLoads a specified configuration from file.")
-		fmt.Println("'showConfig': \t\tPrints the current configuration.")
-		fmt.Println("'printConfig': \t\tAn alias for 'showConfig'.")
-		fmt.Println("'updateDNS [IP] [PORT]': \t\tAllows you to update the DNS table'.")
-		fmt.Println("'exit': \t\tExits the program.")
+		fmt.Println("'help': \t\t\tPrints this help message or information about a given command.")
+		fmt.Println("'config': \t\t\tUsed to set various parameters.")
+		fmt.Println("'guided-config': \t\tStarts guided configuration.")
+		fmt.Println("'start': \t\t\tStarts the node.")
+		fmt.Println("'saveConfig': \t\t\tSaves the current configuration to file.")
+		fmt.Println("'listConfigs': \t\t\tLists all known configurations.")
+		fmt.Println("'loadConfig': \t\t\tLoads a specified configuration from file.")
+		fmt.Println("'showConfig': \t\t\tPrints the current configuration.")
+		fmt.Println("'printConfig': \t\t\tAn alias for 'showConfig'.")
+		fmt.Println("'startConfig': \t\t\tLoads and starts a specified configuration.")
+		fmt.Println("'updateDNS [IP] [PORT]': \tAllows you to update the DNS table'.")
+		fmt.Println("'exit': \t\t\tExits the program.")
 		return
 	}
 	switch args[0] {
