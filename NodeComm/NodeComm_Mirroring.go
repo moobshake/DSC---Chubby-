@@ -83,7 +83,6 @@ func (n *Node) MirrorSink(MRecs []*pc.MirrorRecord) {
 	fmt.Println("MirrorSink")
 
 	for _, MRecord := range MRecs {
-		// TODO: Ask Linux users to help me test this func HERE
 		// Get the correct file path for this machine os
 		getCorrectFilePath(&MRecord.FilePath)
 

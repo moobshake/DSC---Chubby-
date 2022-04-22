@@ -251,7 +251,7 @@ func (c *Client) DispatchClientWriteRequest(writeFileName string, shouldModifyFi
 		c.HandleMasterRediction(reply)
 		c.DispatchClientWriteRequest(writeFileName, false) // Do not modify the file again
 	} else if reply.Type == pc.ClientMessage_InvalidLock {
-		fmt.Println("Client's Lock was invalid:", reply.Type, "TODO: idk try again????")
+		fmt.Println("Client's Lock was invalid:", reply.Type)
 	} else if reply.Type == pc.ClientMessage_Error {
 		// A major error will be not enough replicas giving the OK to write
 		fmt.Println("Client's Write Request invalid, majority rejected:", reply.Type)

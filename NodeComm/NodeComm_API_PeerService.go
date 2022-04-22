@@ -193,7 +193,6 @@ func (n *Node) EstablishReplicaConsensus(ctx context.Context, serverMsg *pc.Serv
 	fmt.Printf("Replica %d receiving message from master:%s\n", n.myPRecord.Id, serverMsg.Type)
 
 	switch serverMsg.Type {
-	// TODO: YH create the functions this case will use, feel free to change the serverMsg Type
 	case pc.ServerMessage_ReqLock, pc.ServerMessage_ReadLock, pc.ServerMessage_WriteLock:
 		// Find master
 		// Replies with master's address

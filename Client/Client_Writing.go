@@ -44,7 +44,6 @@ func (c *Client) modifyFileForDemo(writeFileName string) {
 // getValidLocalWriteLock checks if the client has the appropraite valid write lock.
 // If the client does not have the lock, request for it first.
 // Returns a valid lock, otherwise, return an empty lock.
-// TODO(Hannah): Get valid write lock
 func (c *Client) getValidLocalWriteLock(writeFileName string) *pc.LockMessage {
 	lockStatus := c.isLockExpire(writeFileName)
 	if lockStatus == 2 {

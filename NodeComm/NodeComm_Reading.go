@@ -19,7 +19,6 @@ func (n *Node) validateReadRequest(CliMsg *pc.ClientMessage) bool {
 	return n.validateReadLock(int(CliMsg.ClientID), CliMsg.Lock.Sequencer) && n.validateFileExists(CliMsg)
 }
 
-// TODO: Locking when available
 func (n *Node) validateReadLock(id int, sequencer string) bool {
 	filename := strings.Split(sequencer, ",")[0]
 

@@ -19,7 +19,6 @@ const (
 	TEMP_PREFIX = "temp_"
 )
 
-// TODO: Locking when available
 func (n *Node) validateWriteLock(id int, sequencer string) bool {
 	filename := strings.Split(sequencer, ",")[0]
 

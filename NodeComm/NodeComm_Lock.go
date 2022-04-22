@@ -199,9 +199,6 @@ func (n *Node) AcquireReadLock(filename string, client_id int, lockdelay int) (b
 		return false, "", "", 0
 	}
 
-	// TODO? add check if client already has write lock?
-	// then do what?
-
 	n.lockGenerationNumber++
 	ts := time.Now()
 	s := sequencerGenerator(filename, "shared", n.lockGenerationNumber)

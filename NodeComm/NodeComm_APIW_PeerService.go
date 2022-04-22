@@ -142,7 +142,6 @@ func (n *Node) DispatchServerMessage(destPRec *pc.PeerRecord, readCheckMsg *pc.S
 // DispatchFileToReplica sends a stream of messages to a replica.
 func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 
-	// TODO: Ask Linux users to help me test this func HERE
 	// Get the correct file path for this machine os
 	getCorrectFilePath(&filePath)
 
@@ -202,7 +201,6 @@ func (n *Node) DispatchFileToReplica(dPRec *pc.PeerRecord, filePath string) {
 
 		serverMsg := pc.ServerMessage{
 			// ClientID: int32(n.myPRecord.Id),
-			// TODO: Check how i should specify the type
 			Type: pc.ServerMessage_ReplicaWriteData,
 			// The name of the file to write
 			StringMessages: filePath,

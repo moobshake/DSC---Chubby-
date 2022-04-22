@@ -51,7 +51,6 @@ func (c *Client) writeToCache(fileContentMessage *pc.FileBodyMessage, truncateFi
 // Check if the client has the appropraite valid read lock.
 // If the client does not have the lock, request for it first.
 // Returns a valid lock, otherwise, return an empty lock.
-// TODO(Hannah): Get valid read lock
 func (c *Client) getValidLocalReadLock(readFileName string) *pc.LockMessage {
 	lockStatus := c.isLockExpire(readFileName)
 	if lockStatus == 2 {
