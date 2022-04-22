@@ -1,4 +1,11 @@
 # Our Chubby Algorithm ^_^
+Distributed Systems and Computing Term 7 2022
+
+## Authors
+- Darryl Tan (1004152)
+- Yu Hui Lau (1004410)
+- Chua Jia Wei (1004369)
+- Hannah Mah (1004332)
 
 ## General Usage
 When first ran, our program starts an initial CLI interface that can be used to create, load, modify, and save start parameters. Upon "starting", you will be brought to either the CLI of the client or the CLI of a chubby replica.
@@ -115,14 +122,72 @@ Available Commands:
 ```
 
 ### help
+This command prints out the list of avaialble commands.
+```
+> help <command>
+```
+Additionally, if the name of a command is provided as an argument, additional help text for the specified command will be provided if there is any.
 
 ### exit
+This command exits the program.
+```
+> exit
+```
 
 ### write FILE_NAME
+This command sends a write request to the chubby primary. If the current client does not have a write lock yet, this command will also request a write lock first. Before sending the write file to the primary, this command will append the line *"This is a new line"* to the file requested. This is to allow users to know that the file has indeed been modified at the chubby master side upon a successful write. 
+```
+> write FILE_NAME
+```
+For example, if you wish to write to the file "file1.txt", please type
+```
+> write file1.txt
+```
 
 ### read FILE_NAME
+This command sends a read request to the chubby primary if the client does not have a valid cache of the file. If the current client does not have a read or write lock yet, this command will also request a read lock first. Upon a successful read, the client will write the file to its cache under `\client_cache\client_cache_N` where N is the client ID. It will then print out the first line (until the first "\n") of the file that was read. If the client has a valid cache of the file, it will simply print out the first line from the cache. Once read lock expires, the client's cache for that file will be invalidated.  
+```
+> read FILE_NAME
+```
+For example, if you wish to write to the file "file1.txt", please type
+```
+> read file1.txt
+```
 
 ### sub SUB_TYPE
+The client may subscribe to 4 events triggered at the chubby master. The master will then publish a message to each subscribed client upon the trigger of an event. Do note that out of all the events, only File Modification has been integrated with the chubby Master's code as we did not see the eventual need for all of the others. However, the master will still receive the other 3 subscription events and users can manually publish the event through the chubby master's command line. 
+
+1. File Modification
+When another client writes to a specified file, all other subscribed clients will receive a notification and will invalidate their own cache of the file. 
+To subscribe to this event, type:
+```
+> sub FileMod FILE_NAME
+```
+where FILE_NAME is the name of the file to monitor such as "file1.txt"
+
+2. Lock Acquire
+This publishing of this event can only be tested by manually publishing it at the chubby master. 
+To subscribe to this event, type:
+```
+> sub LockAcquire LOCK_NAME
+```
+where LOCK_NAME is the name of the lock to monitor such as "file1.txt.lock"
+
+3. Lock Conflict
+This publishing of this event can only be tested by manually publishing it at the chubby master. 
+To subscribe to this event, type:
+```
+> sub LockConflict LOCK_NAME
+```
+where LOCK_NAME is the name of the lock to monitor such as "file1.txt.lock"
+
+4. Master Failover
+This publishing of this event can only be tested by manually publishing it at the chubby master. 
+To subscribe to this event, type:
+```
+> sub MasterFailover
+```
+While this event may seem useful, our clients do not need to be notified of a handover. They can automatically find the new master when necessary. 
 
 ### ls
 
