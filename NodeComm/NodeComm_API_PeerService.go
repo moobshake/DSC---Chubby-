@@ -64,6 +64,7 @@ func (n *Node) SendCoordinationMessage(ctx context.Context, coMsg *pc.Coordinati
 			// 	return &pc.CoordinationMessage{Type: pc.CoordinationMessage_NotMaster}, nil
 			// }
 			fmt.Println("This node has received a WAKEUP message from a coordinator.")
+			n.idOfMaster = int(coMsg.FromPRecord.Id)
 			n.updatePeerRecords(coMsg.FromPRecord)
 			//Quicky and dirty ID collision avoidance
 			for _, pRec := range n.peerRecords {
