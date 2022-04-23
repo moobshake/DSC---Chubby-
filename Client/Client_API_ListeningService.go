@@ -20,6 +20,4 @@ func (c *Client) SendClientMessage(ctx context.Context, CliMsg *pc.ClientMessage
 		fmt.Printf("> Unimplemented.\n")
 		return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_Error}, nil
 	}
-
-	return &pc.ClientMessage{ClientID: CliMsg.ClientID, Type: pc.ClientMessage_Ack}, nil
 }

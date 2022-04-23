@@ -243,6 +243,12 @@ func (n *Node) wakeUpNode(params []string) {
 		}
 		nPRecs = append(nPRecs, &nPRec)
 	}
+
+	if len(nPRecs) == 0 {
+		fmt.Println("No valid peers to wake up.")
+		return
+	}
+
 	n.DispatchControlMessage(&pc.ControlMessage{Type: pc.ControlMessage_WakeUpNode, ParamsBody: &pc.ParamsBody{PeerRecords: nPRecs}})
 }
 

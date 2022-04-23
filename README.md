@@ -10,6 +10,15 @@ Distributed Systems and Computing Term 7 2022
 ## General Usage
 When first ran, our program starts an initial CLI interface that can be used to create, load, modify, and save start parameters. Upon "starting", you will be brought to either the CLI of the client or the CLI of a chubby replica.
 
+Start the program by running either of the two commands while in the main directory:
+```
+go run .
+```
+or 
+```
+go run main.go
+```
+
 ## Initial CLI
 ### Overview of Available Commands
 ```

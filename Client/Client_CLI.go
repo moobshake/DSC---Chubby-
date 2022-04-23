@@ -95,7 +95,7 @@ func printHelp(params []string) {
 		fmt.Println("Available Commands:")
 		fmt.Println("'help': \t\t\t\t\t Prints this menu.")
 		fmt.Printf("'%s':\t\t\t\t\t\t Exit program.\n", EXIT_CLI)
-		fmt.Printf("'%s FILE_NAME [modify file? %s/%s]':\t Client sends Write Request to Master.\n", WRITE_CLI, TRUE_CLI, FALSE_CLI)
+		fmt.Printf("'%s FILE_NAME':\t\t\t\t Client sends Write Request to Master.\n", WRITE_CLI)
 		fmt.Printf("'%s FILE_NAME':\t\t\t\t Client sends Read Request to Master.\n", READ_CLI)
 		fmt.Printf("'%s SUB_TYPE':\t\t\t\t\t Sends a subscription request. Type help %s for more info.\n", SUB, SUB)
 		fmt.Printf("'%s':\t\t\t\t\t\t Lists the files available for the client\n", LIST_FILE_CLI)
