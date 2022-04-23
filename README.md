@@ -124,7 +124,7 @@ This command exits the program.
 Available Commands:
 'help':                                          Prints this menu.
 'exit':                                          Exit program.
-'write FILE_NAME [modify file? true/false]':     Client sends Write Request to Master.
+'write FILE_NAME' :                              Client sends Write Request to Master.
 'read FILE_NAME':                                Client sends Read Request to Master.
 'sub SUB_TYPE':                                  Sends a subscription request. Type help sub for more info.
 'ls':                                            Lists the files available for the client
