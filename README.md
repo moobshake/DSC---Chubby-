@@ -7,6 +7,10 @@ This program is for the Distributed Systems and Computing Term 7 2022 group proj
 - Chua Jia Wei (1004369)
 - Hannah Mah (1004332)
 
+## Video Demo
+Here is a short demo to get you started on how to run our Chubby Algorithm:
+[CLICK ME!](https://youtu.be/kPOn6vsnFfU)
+
 ## Code Structure
 Our general code structure is illustrated in the below diagram.
 ![](code_structure.jpg)
