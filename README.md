@@ -97,8 +97,11 @@ This command is a convenience wrapper of loadConfig and start - it attempts to l
 > startConfig <configuration_name>
 ```
 
-### udpateDNS
-Yu Hui help please
+### updateDNS
+This command enables one to manually add a new server's IP and port number to the DNS lookup table - Ensuring that the client will connect to at least one server
+```
+> updateDNS <ip_address> <port>
+```
 
 ### exit
 This command exits the program.
@@ -122,7 +125,7 @@ Available Commands:
 ```
 
 ### help
-This command prints out the list of avaialble commands.
+This command prints out the list of avaliable commands.
 ```
 > help <command>
 ```
@@ -190,12 +193,28 @@ To subscribe to this event, type:
 While this event may seem useful, our clients do not need to be notified of a handover. They can automatically find the new master when necessary. 
 
 ### ls
+Allows you to retrieve the names of the files that are avaliable from the Chubby server side, similar to the ls function in the standard CLI
+```
+> ls
+```
 
 ### ll
+Prints out a list of locks that the client has currently acquired
+```
+> ll
+```
 
 ### releaseLock
+Allows client to manually release a lock of type (read/write) that is currently in its possession for a file 
+```
+> releaseLock <lock_type> <file_name>
+```
 
 ### requestLock
+Allows client to request for a lock of type (read/write) for a file 
+```
+> requestLock <lock_type> <file_name>
+```
 
 ## Server CLI
 ### Overview of Available Commands
