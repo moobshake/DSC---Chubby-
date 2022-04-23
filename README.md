@@ -1,11 +1,16 @@
 # Our Chubby Algorithm ^_^
-Distributed Systems and Computing Term 7 2022
+This program is for the Distributed Systems and Computing Term 7 2022 group project.
 
 ## Authors
 - Darryl Tan (1004152)
 - Yu Hui Lau (1004410)
 - Chua Jia Wei (1004369)
 - Hannah Mah (1004332)
+
+## Code Structure
+Our general code structure is illustrated in the below diagram.
+![](code_structure.jpg)
+
 
 ## General Usage
 When first ran, our program starts an initial CLI interface that can be used to create, load, modify, and save start parameters. Upon "starting", you will be brought to either the CLI of the client or the CLI of a chubby replica.
@@ -358,10 +363,3 @@ This command prints the help menu to the terminal.
 > help
 ```
 
-## Code Structure
-![](code_structure.jpg)
-
-## Protocol Buffer Generation
-```
-protoc --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative  ./ProtocChubby/Chubby.proto
-```
